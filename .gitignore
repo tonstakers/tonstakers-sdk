@@ -1,0 +1,8 @@
+.anchor
+.DS_Store
+dist
+node_modules
+.vscode
+*.tgz
+yarn-error.log
+yarn.lock

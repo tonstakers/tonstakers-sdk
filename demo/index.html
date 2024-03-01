@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tonstakers SDK Demo</title>
+    <script src="../dist/tonstakers-sdk.min.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/@tonconnect/sdk@latest/dist/tonconnect-sdk.min.js"></script>
+</head>
+
+<body>
+    <h1>Tonstakers SDK Demo</h1>
+    <button id="connectWallet">Connect Wallet</button>
+    <button id="disconnectWallet" style="display:none">Disconnect Wallet</button>
+    <button id="stake">Stake 1 TON</button>
+    <button id="unstake">Unstake 1 TON</button>
+    <button id="refreshBalances">Refresh Balances</button>
+    <br /><br />
+    <div id="walletAddressDisplay">Wallet Address: <span id="walletAddress"></span></div>
+    <div id="balanceDisplay">Balance TON: <span id="balance"></span></div>
+    <div id="stakedBalanceDisplay">Staked TON (tsTON): <span id="stakedBalance"></span></div>
+
+    <script>
+        const connector = new TonConnectSDK.TonConnect({
+            manifestUrl: 'https://tonstakers.com/dapp/tonconnect-manifest.json',
+        });
+        const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ connector });
+
+        const { Tonstakers } = TonstakersSDK;
+        const tonstakers = new Tonstakers({
+            connector,
+            referralCode: 123456
+        });
+
+        tonstakers.addEventListener('initialized', async () => {
+            getStakedBalance();
+        });
+
+        const unsubscribe = tonConnectUI.onStatusChange(
+            wallet => {
+                if (wallet.account?.address) {
+                    const address = wallet.account.address;
+
+                    document.getElementById('walletAddress').innerText = address;
+                    document.getElementById('connectWallet').style.display = 'none';
+                    document.getElementById('disconnectWallet').style.display = 'inline';
+
+                    getWalletBalance();
+                }
+            }
+        );
+
+        document.getElementById('connectWallet').addEventListener('click', async () => {
+            await tonConnectUI.openModal();
+        });
+
+        document.getElementById('disconnectWallet').addEventListener('click', async () => {
+            await tonConnectUI.disconnect();
+            document.getElementById('connectWallet').style.display = 'inline';
+            document.getElementById('disconnectWallet').style.display = 'none';
+            document.getElementById('walletAddress').innerText = '';
+            document.getElementById('balance').innerText = '';
+            document.getElementById('stakedBalance').innerText = '';
+        });
+
+        document.getElementById('stake').addEventListener('click', async () => {
+            if (tonstakers) {
+                await tonstakers.stake(1); // Example stake amount
+                console.log('Staked 1 TON');
+            } else {
+                console.error('Wallet not connected');
+            }
+        });
+
+        document.getElementById('unstake').addEventListener('click', async () => {
+            if (tonstakers) {
+                await tonstakers.unstake(1); // Example unstake amount
+                console.log('Unstaked 1 TON');
+            } else {
+                console.error('Wallet not connected');
+            }
+        });
+
+        async function getWalletBalance() {
+            if (connector.wallet) {
+                const wallet = connector.wallet;
+                let balanceUrl = wallet.account.chain === '-3' ?
+                    'https://testnet.toncenter.com/api/v2/getAddressBalance?address=' + wallet.account.address :
+                    'https://toncenter.com/api/v2/getAddressBalance?address=' + wallet.account.address;
+
+                const balanceResponse = await fetch(balanceUrl);
+                const balanceData = await balanceResponse.json();
+                document.getElementById('balance').innerText = balanceData.result / 1000000000;
+            }
+        }
+
+        async function getStakedBalance() {
+            const stakedBalance = await tonstakers.getBalance();
+            document.getElementById('stakedBalance').innerText = stakedBalance / 1000000000;
+        }
+
+        document.getElementById('refreshBalances').addEventListener('click', () => {
+            getWalletBalance();
+            getStakedBalance();
+        });
+    </script>
+</body>
+
+</html>
