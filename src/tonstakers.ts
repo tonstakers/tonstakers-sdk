@@ -112,13 +112,13 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async unstake(amount: number): Promise<void> {
+  async unstake(amount: number, waitTillRoundEnd: boolean = false, fillOrKill: boolean = false): Promise<void> {
     if (!Tonstakers.jettonWalletAddress) {
       throw new Error("Jetton wallet address is not set.");
     }
     try {
       await this.validateAmount(amount);
-      const payload = this.preparePayload("unstake", amount);
+      const payload = this.preparePayload("unstake", amount, waitTillRoundEnd, fillOrKill);
       await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(CONTRACT.UNSTAKE_FEE_RES), payload); // Includes transaction fee
       console.log(`Initiated unstaking of ${amount} tsTON.`);
     } catch (error) {
