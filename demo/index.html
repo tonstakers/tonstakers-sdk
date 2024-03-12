@@ -40,7 +40,7 @@
 
         const unsubscribe = tonConnectUI.onStatusChange(
             wallet => {
-                if (wallet.account?.address) {
+                if (wallet?.account?.address) {
                     const address = wallet.account.address;
 
                     document.getElementById('walletAddress').innerText = address;

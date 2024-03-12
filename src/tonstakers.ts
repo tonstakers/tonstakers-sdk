@@ -50,7 +50,7 @@ class Tonstakers extends EventTarget {
 
   private async initialize(): Promise<void> {
     this.connector.onStatusChange(async (wallet) => {
-      if (wallet.account?.address) {
+      if (wallet?.account?.address) {
         this.setupClient(wallet);
       } else {
         this.deinitialize();
@@ -90,7 +90,7 @@ class Tonstakers extends EventTarget {
     }
     try {
       await this.validateAmount(amount);
-      const totalAmount = toNano(amount + 1); // Includes transaction fee
+      const totalAmount = toNano(amount + CONTRACT.STAKE_FEE_RES); // Includes transaction fee
       const payload = this.preparePayload("stake", amount);
       await this.sendTransaction(this.stakingContractAddress, totalAmount, payload);
       console.log(`Staked ${amount} TON successfully.`);
@@ -107,7 +107,7 @@ class Tonstakers extends EventTarget {
     try {
       await this.validateAmount(amount);
       const payload = this.preparePayload("unstake", amount);
-      await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(1), payload);
+      await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(CONTRACT.UNSTAKE_FEE_RES), payload); // Includes transaction fee
       console.log(`Initiated unstaking of ${amount} tsTON.`);
     } catch (error) {
       console.error("Unstaking failed:", error instanceof Error ? error.message : error);
