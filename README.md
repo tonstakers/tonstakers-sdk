@@ -6,6 +6,7 @@ The Tonstakers SDK is a comprehensive tool designed for developers who wish to i
 
 - Staking and unstaking operations
 - Balance retrieval for staked assets
+- Optional API key configuration for enhanced access to the tonapi
 
 ## Installation
 
@@ -41,8 +42,11 @@ import { Tonstakers } from "tonstakers-sdk";
 const tonstakers = new Tonstakers({
   connector: yourWalletConnector, // Your wallet connector instance
   referralCode: 123456, // Optional referral code
+  tonApiKey: "YOUR_API_KEY", // Optional API key for TON API
 });
 ```
+
+The tonApiKey key is used to set the authorization header for increasing the tonapi usage limits. This is optional and can be omitted if not required.
 
 ### In a Browser Environment
 
@@ -54,6 +58,7 @@ Include the SDK and initialize it directly in your HTML file:
   const tonstakers = new TonstakersSDK.Tonstakers({
     connector: yourWalletConnector,
     referralCode: 123456,
+    tonApiKey: "YOUR_API_KEY",
   });
 </script>
 ```
@@ -71,6 +76,17 @@ Perform staking and unstaking operations:
 ```javascript
 await tonstakers.stake(1); // Stake 1 TON
 await tonstakers.unstake(1); // Unstake 1 TON
+```
+
+The SDK allows for advanced control over unstaking operations through two parameters: `waitTillRoundEnd` and `fillOrKill`.
+
+- `waitTillRoundEnd`: If set to true, the withdrawal bill will be minted regardless of the possibility to make an immediate withdrawal. This is useful if you want to wait until the end of the round to potentially benefit from the round's profit, even in optimistic mode.
+- `fillOrKill`: If set to true and there are not enough TONs for an immediate withdrawal, the burn request will be reverted by minting pool jettons back to the nominator. This ensures that your unstaking request is either fully processed or not processed at all, without partial execution.
+
+Perform unstaking with advanced options
+
+```javascript
+await tonstakers.unstake(1, true, false); // Unstake 1 TON, with waitTillRoundEnd set to true and fillOrKill set to false
 ```
 
 Retrieve the balance of staked assets:
