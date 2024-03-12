@@ -27,6 +27,7 @@ interface IWalletConnector {
 interface TonstakersOptions {
   connector: IWalletConnector;
   referralCode?: number;
+  tonApiKey?: string;
 }
 
 class Tonstakers extends EventTarget {
@@ -36,11 +37,13 @@ class Tonstakers extends EventTarget {
   private stakingContractAddress?: Address;
   private referralCode: number;
   private static jettonWalletAddress?: Address;
+  private tonApiKey?: string;
 
-  constructor({ connector, referralCode = CONTRACT.REFERRAL_CODE }: TonstakersOptions) {
+  constructor({ connector, referralCode = CONTRACT.REFERRAL_CODE, tonApiKey }: TonstakersOptions) {
     super();
     this.connector = connector;
     this.referralCode = referralCode;
+    this.tonApiKey = tonApiKey;
 
     this.initialize().catch((error) => {
       console.error("Initialization error:", error);
@@ -61,8 +64,17 @@ class Tonstakers extends EventTarget {
   private async setupClient(wallet: any): Promise<void> {
     console.log("Initializing Tonstakers...");
     const isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
+    const baseApiParams = this.tonApiKey
+      ? {
+          headers: {
+            Authorization: `Bearer ${this.tonApiKey}`,
+            "Content-type": "application/json",
+          },
+        }
+      : {};
     const httpClient = new HttpClient({
       baseUrl: isTestnet ? BLOCKCHAIN.API_URL_TESTNET : BLOCKCHAIN.API_URL,
+      baseApiParams,
     });
     this.client = new Api(httpClient);
     this.walletAddress = Address.parse(wallet.account.address);
