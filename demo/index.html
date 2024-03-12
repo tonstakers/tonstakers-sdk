@@ -15,7 +15,7 @@
     <button id="connectWallet">Connect Wallet</button>
     <button id="disconnectWallet" style="display:none">Disconnect Wallet</button>
     <button id="stake">Stake 1 TON</button>
-    <button id="unstake">Unstake 1 TON</button>
+    <button id="unstake">Unstake 1 tsTON</button>
     <button id="refreshBalances">Refresh Balances</button>
     <br /><br />
     <div id="walletAddressDisplay">Wallet Address: <span id="walletAddress"></span></div>
@@ -77,7 +77,7 @@
         document.getElementById('unstake').addEventListener('click', async () => {
             if (tonstakers) {
                 await tonstakers.unstake(1); // Example unstake amount
-                console.log('Unstaked 1 TON');
+                console.log('Unstaked 1 tsTON');
             } else {
                 console.error('Wallet not connected');
             }

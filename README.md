@@ -42,11 +42,11 @@ import { Tonstakers } from "tonstakers-sdk";
 const tonstakers = new Tonstakers({
   connector: yourWalletConnector, // Your wallet connector instance
   referralCode: 123456, // Optional referral code
-  tonApiKey: "YOUR_API_KEY", // Optional API key for TON API
+  tonApiKey: "YOUR_API_KEY", // Optional API key for tonapi
 });
 ```
 
-The tonApiKey key is used to set the authorization header for increasing the tonapi usage limits. This is optional and can be omitted if not required.
+The tonApiKey key is used to set the authorization header for increasing the [tonapi](https://tonapi.io/) usage limits. This is optional and can be omitted if not required.
 
 ### In a Browser Environment
 
@@ -75,7 +75,7 @@ Perform staking and unstaking operations:
 
 ```javascript
 await tonstakers.stake(1); // Stake 1 TON
-await tonstakers.unstake(1); // Unstake 1 TON
+await tonstakers.unstake(1); // Unstake 1 tsTON
 ```
 
 The SDK allows for advanced control over unstaking operations through two parameters: `waitTillRoundEnd` and `fillOrKill`.
@@ -83,10 +83,10 @@ The SDK allows for advanced control over unstaking operations through two parame
 - `waitTillRoundEnd`: If set to true, the withdrawal bill will be minted regardless of the possibility to make an immediate withdrawal. This is useful if you want to wait until the end of the round to potentially benefit from the round's profit, even in optimistic mode.
 - `fillOrKill`: If set to true and there are not enough TONs for an immediate withdrawal, the burn request will be reverted by minting pool jettons back to the nominator. This ensures that your unstaking request is either fully processed or not processed at all, without partial execution.
 
-Perform unstaking with advanced options
+Perform unstaking with advanced options:
 
 ```javascript
-await tonstakers.unstake(1, true, false); // Unstake 1 TON, with waitTillRoundEnd set to true and fillOrKill set to false
+await tonstakers.unstake(1, true, false); // Unstake 1 tsTON, with waitTillRoundEnd set to true and fillOrKill set to false
 ```
 
 Retrieve the balance of staked assets:
