@@ -1,16 +1,18 @@
 # Tonstakers SDK
 
-The Tonstakers SDK is a comprehensive tool designed for developers who wish to integrate staking functionalities within their applications on the TON blockchain. It simplifies the process of staking and unstaking operations, making it more accessible for developers to connect with the TON ecosystem.
+The Tonstakers SDK offers an advanced set of tools for developers aiming to incorporate staking functionalities into their applications on the TON blockchain. This updated version introduces a more extensive interaction with the TON ecosystem, including staking operations, balance inquiries, and much more, enhancing your application's capabilities.
 
 ## Features
 
-- Staking and unstaking operations
-- Balance retrieval for staked assets
-- Optional API key configuration for enhanced access to the tonapi
+- Simplified staking and unstaking operations, including options for maximum stake, instant unstake, and best rate unstake.
+- Retrieval of staked, available, TVL (Total Value Locked), and stakers count balances.
+- Fetching current and historical APY (Annual Percentage Yield) for staked assets.
+- Enhanced API key configuration for improved access limits to the tonapi.
+- Event-driven architecture for initialization and deinitialization notifications.
 
 ## Installation
 
-You can install the Tonstakers SDK either by using a package manager like npm or yarn, or directly in your HTML file via a `<script>` tag.
+Tonstakers SDK can be easily installed using npm or yarn, or integrated directly into your HTML pages.
 
 ### Using npm or yarn
 
@@ -22,19 +24,19 @@ yarn add tonstakers-sdk
 
 ### Using a `<script>` tag
 
-Alternatively, you can include the Tonstakers SDK directly in your HTML file:
+For direct HTML integration:
 
 ```html
 <script src="path/to/tonstakers-sdk.min.js"></script>
 ```
 
-Ensure to replace `"path/to/tonstakers-sdk.min.js"` with the actual path to the SDK.
+Replace `"path/to/tonstakers-sdk.min.js"` with the actual SDK path.
 
 ## Usage
 
 ### In a Module Environment
 
-First, initialize the SDK with your connector and optional referral code:
+Initialize the SDK with your wallet connector and optional parameters:
 
 ```javascript
 import { Tonstakers } from "tonstakers-sdk";
@@ -46,16 +48,14 @@ const tonstakers = new Tonstakers({
 });
 ```
 
-The tonApiKey key is used to set the authorization header for increasing the [tonapi](https://tonapi.io/) usage limits. This is optional and can be omitted if not required.
-
 ### In a Browser Environment
 
-Include the SDK and initialize it directly in your HTML file:
+Direct HTML file initialization:
 
 ```html
 <script src="path/to/tonstakers-sdk.min.js"></script>
 <script>
-  const tonstakers = new TonstakersSDK.Tonstakers({
+  const tonstakers = new Tonstakers({
     connector: yourWalletConnector,
     referralCode: 123456,
     tonApiKey: "YOUR_API_KEY",
@@ -63,39 +63,52 @@ Include the SDK and initialize it directly in your HTML file:
 </script>
 ```
 
-Listen for the SDK to initialize:
+#### Event Listeners
 
 ```javascript
 tonstakers.addEventListener("initialized", () => {
   console.log("Tonstakers SDK initialized successfully.");
 });
+
+tonstakers.addEventListener("deinitialized", () => {
+  console.log("Tonstakers SDK has been deinitialized.");
+});
 ```
 
-Perform staking and unstaking operations:
+#### Performing Operations
+
+Stake and unstake with new methods:
 
 ```javascript
 await tonstakers.stake(1); // Stake 1 TON
 await tonstakers.unstake(1); // Unstake 1 tsTON
+await tonstakers.stakeMax(); // Stake the maximum available balance
+await tonstakers.unstakeInstant(1); // Instant unstake 1 tsTON
+await tonstakers.unstakeBestRate(1); // Unstake 1 tsTON at the best available rate
 ```
 
-The SDK allows for advanced control over unstaking operations through two parameters: `waitTillRoundEnd` and `fillOrKill`.
-
-- `waitTillRoundEnd`: If set to true, the withdrawal bill will be minted regardless of the possibility to make an immediate withdrawal. This is useful if you want to wait until the end of the round to potentially benefit from the round's profit, even in optimistic mode.
-- `fillOrKill`: If set to true and there are not enough TONs for an immediate withdrawal, the burn request will be reverted by minting pool jettons back to the nominator. This ensures that your unstaking request is either fully processed or not processed at all, without partial execution.
-
-Perform unstaking with advanced options:
+Retrieve information:
 
 ```javascript
-await tonstakers.unstake(1, true, false); // Unstake 1 tsTON, with waitTillRoundEnd set to true and fillOrKill set to false
-```
+const stakedBalance = await tonstakers.getStakedBalance();
+console.log(`Current staked balance: ${stakedBalance}`);
 
-Retrieve the balance of staked assets:
+const availableBalance = await tonstakers.getAvailableBalance();
+console.log(`Available balance for staking: ${availableBalance}`);
 
-```javascript
-const balance = await tonstakers.getBalance();
-console.log(`Current staked balance: ${balance}`);
+const currentApy = await tonstakers.getCurrentApy();
+console.log(`Current APY: ${currentApy}%`);
+
+const historicalApy = await tonstakers.getHistoricalApy();
+console.log(`Historical APY data: ${historicalApy}`);
+
+const tvl = await tonstakers.getTvl();
+console.log(`Total Value Locked (TVL): ${tvl}`);
+
+const stakersCount = await tonstakers.getStakersCount();
+console.log(`Current number of stakers: ${stakersCount}`);
 ```
 
 ## Demo
 
-A demo HTML page is provided to showcase how the SDK can be integrated into a web application. It demonstrates connecting a wallet, staking, unstaking, and refreshing balances.
+A demo HTML page is included with the SDK to demonstrate integration into web applications, showcasing wallet connection, staking/unstaking operations, and balance updates.
