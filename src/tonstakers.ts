@@ -227,6 +227,32 @@ class Tonstakers extends EventTarget {
     }
   }
 
+  async getCurrentApy(): Promise<number> {
+    if (!this.client || !this.stakingContractAddress) {
+      throw new Error("Tonstakers is not fully initialized.");
+    }
+    try {
+      const response = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress.toString());
+      return response.pool.apy;
+    } catch {
+      console.error("Failed to get current APY");
+      throw new Error("Could not retrieve current APY.");
+    }
+  }
+
+  async getHistoricalApy(): Promise<any> {
+    if (!this.client || !this.stakingContractAddress) {
+      throw new Error("Tonstakers is not fully initialized.");
+    }
+    try {
+      const response = await this.client.staking.getStakingPoolHistory(this.stakingContractAddress.toString());
+      return response.apy;
+    } catch {
+      console.error("Failed to get historical APY");
+      throw new Error("Could not retrieve historical APY.");
+    }
+  }
+
   private async validateAmount(amount: number): Promise<void> {
     if (typeof amount !== "number" || amount <= 0) {
       throw new Error("Invalid amount specified");
