@@ -253,6 +253,32 @@ class Tonstakers extends EventTarget {
     }
   }
 
+  async getTvl(): Promise<number> {
+    if (!this.client || !this.stakingContractAddress) {
+      throw new Error("Tonstakers is not fully initialized.");
+    }
+    try {
+      const response = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress.toString());
+      return response.pool.total_amount;
+    } catch {
+      console.error("Failed to get TVL");
+      throw new Error("Could not retrieve TVL.");
+    }
+  }
+
+  async getStakersCount(): Promise<number> {
+    if (!this.client || !this.stakingContractAddress) {
+      throw new Error("Tonstakers is not fully initialized.");
+    }
+    try {
+      const response = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress.toString());
+      return response.pool.current_nominators;
+    } catch {
+      console.error("Failed to get stakers count");
+      throw new Error("Could not retrieve stakers count.");
+    }
+  }
+
   private async validateAmount(amount: number): Promise<void> {
     if (typeof amount !== "number" || amount <= 0) {
       throw new Error("Invalid amount specified");

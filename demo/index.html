@@ -26,6 +26,8 @@
     <div id="availableBalanceDisplay">Available to stake: <span id="availableBalance"></span></div>
     <div id="stakedBalanceDisplay">Staked TON (tsTON): <span id="stakedBalance"></span></div>
     <div id="apyDisplay">APY: <span id="apy"></span></div>
+    <div id="tvlDisplay">TVL: <span id="tvl"></span></div>
+    <div id="stakersDisplay">Stakers: <span id="stakers"></span></div>
 
     <script>
         const connector = new TonConnectSDK.TonConnect({
@@ -43,6 +45,8 @@
             getStakedBalance();
             getAvailableBalance();
             getApy();
+            getTvl();
+            getStakers();
         });
 
         const unsubscribe = tonConnectUI.onStatusChange(
@@ -145,6 +149,16 @@
         async function getApy() {
             const apy = await tonstakers.getCurrentApy();
             document.getElementById('apy').innerText = apy;
+        }
+
+        async function getTvl() {
+            const tvl = await tonstakers.getTvl();
+            document.getElementById('tvl').innerText = tvl / 1000000000;
+        }
+
+        async function getStakers() {
+            const stakers = await tonstakers.getStakersCount();
+            document.getElementById('stakers').innerText = stakers;
         }
 
         document.getElementById('refreshBalances').addEventListener('click', () => {
