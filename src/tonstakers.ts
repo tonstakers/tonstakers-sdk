@@ -113,25 +113,10 @@ class Tonstakers extends EventTarget {
   }
 
   async stakeMax(): Promise<void> {
-    if (!this.client || !this.walletAddress) {
-      throw new Error("Tonstakers is not fully initialized.");
-    }
     try {
-      let balance: number;
-      try {
-        const account = await this.client.accounts.getAccount(this.walletAddress.toString());
-        balance = Number(fromNano(account.balance));
-      } catch {
-        balance = 0;
-      }
-      const maxStakeAmount = balance - CONTRACT.RECOMMENDED_FEE_RESERVE;
-
-      if (maxStakeAmount <= 0) {
-        throw new Error("Not enough balance to stake.");
-      }
-
-      await this.stake(maxStakeAmount);
-      console.log(`Staked maximum amount of ${maxStakeAmount} TON successfully.`);
+      const availableBalance = await this.getAvailableBalance();
+      await this.stake(availableBalance);
+      console.log(`Staked maximum amount of ${availableBalance} TON successfully.`);
     } catch (error) {
       console.error("Maximum staking failed:", error instanceof Error ? error.message : error);
       throw new Error("Maximum staking operation failed.");
@@ -186,7 +171,7 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getBalance(): Promise<number> {
+  async getStakedBalance(): Promise<number> {
     if (!this.client || !Tonstakers.jettonWalletAddress) {
       throw new Error("Tonstakers is not fully initialized.");
     }
@@ -195,6 +180,18 @@ class Tonstakers extends EventTarget {
       const formattedBalance = jettonWalletData.decoded.balance;
       console.log(`Current tsTON balance: ${formattedBalance}`);
       return formattedBalance;
+    } catch {
+      return 0;
+    }
+  }
+
+  async getAvailableBalance(): Promise<number> {
+    if (!this.client || !this.walletAddress) {
+      throw new Error("Tonstakers is not fully initialized.");
+    }
+    try {
+      const account = await this.client.accounts.getAccount(this.walletAddress.toString());
+      return Number(fromNano(account.balance)) - CONTRACT.RECOMMENDED_FEE_RESERVE;
     } catch {
       return 0;
     }

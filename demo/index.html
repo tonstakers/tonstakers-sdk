@@ -21,6 +21,7 @@
     <br /><br />
     <div id="walletAddressDisplay">Wallet Address: <span id="walletAddress"></span></div>
     <div id="balanceDisplay">Balance TON: <span id="balance"></span></div>
+    <div id="availableBalanceDisplay">Available to stake: <span id="availableBalance"></span></div>
     <div id="stakedBalanceDisplay">Staked TON (tsTON): <span id="stakedBalance"></span></div>
 
     <script>
@@ -37,6 +38,7 @@
 
         tonstakers.addEventListener('initialized', async () => {
             getStakedBalance();
+            getAvailableBalance();
         });
 
         const unsubscribe = tonConnectUI.onStatusChange(
@@ -49,6 +51,7 @@
                     document.getElementById('disconnectWallet').style.display = 'inline';
 
                     getWalletBalance();
+
                 }
             }
         );
@@ -64,6 +67,7 @@
             document.getElementById('walletAddress').innerText = '';
             document.getElementById('balance').innerText = '';
             document.getElementById('stakedBalance').innerText = '';
+            document.getElementById('availableBalance').innerText = '';
         });
 
         document.getElementById('stake').addEventListener('click', async () => {
@@ -107,8 +111,13 @@
         }
 
         async function getStakedBalance() {
-            const stakedBalance = await tonstakers.getBalance();
+            const stakedBalance = await tonstakers.getStakedBalance();
             document.getElementById('stakedBalance').innerText = stakedBalance / 1000000000;
+        }
+
+        async function getAvailableBalance() {
+            const availableBalance = await tonstakers.getAvailableBalance();
+            document.getElementById('availableBalance').innerText = availableBalance / 1000000000;
         }
 
         document.getElementById('refreshBalances').addEventListener('click', () => {
