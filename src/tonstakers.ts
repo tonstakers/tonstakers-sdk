@@ -123,18 +123,48 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async unstake(amount: number, waitTillRoundEnd: boolean = false, fillOrKill: boolean = false): Promise<void> {
+  async unstake(amount: number): Promise<void> {
     if (!Tonstakers.jettonWalletAddress) {
       throw new Error("Jetton wallet address is not set.");
     }
     try {
       await this.validateAmount(amount);
-      const payload = this.preparePayload("unstake", amount, waitTillRoundEnd, fillOrKill);
+      const payload = this.preparePayload("unstake", amount);
       await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(CONTRACT.UNSTAKE_FEE_RES), payload); // Includes transaction fee
       console.log(`Initiated unstaking of ${amount} tsTON.`);
     } catch (error) {
       console.error("Unstaking failed:", error instanceof Error ? error.message : error);
       throw new Error("Unstaking operation failed.");
+    }
+  }
+
+  async unstakeInstant(amount: number): Promise<void> {
+    if (!Tonstakers.jettonWalletAddress) {
+      throw new Error("Jetton wallet address is not set.");
+    }
+    try {
+      await this.validateAmount(amount);
+      const payload = this.preparePayload("unstake", amount, false, true);
+      await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(CONTRACT.UNSTAKE_FEE_RES), payload); // Includes transaction fee
+      console.log(`Initiated instant unstaking of ${amount} tsTON.`);
+    } catch (error) {
+      console.error("Instant unstaking failed:", error instanceof Error ? error.message : error);
+      throw new Error("Instant unstaking operation failed.");
+    }
+  }
+
+  async unstakeBestRate(amount: number): Promise<void> {
+    if (!Tonstakers.jettonWalletAddress) {
+      throw new Error("Jetton wallet address is not set.");
+    }
+    try {
+      await this.validateAmount(amount);
+      const payload = this.preparePayload("unstake", amount, true);
+      await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(CONTRACT.UNSTAKE_FEE_RES), payload); // Includes transaction fee
+      console.log(`Initiated unstaking of ${amount} tsTON at the best rate.`);
+    } catch (error) {
+      console.error("Best rate unstaking failed:", error instanceof Error ? error.message : error);
+      throw new Error("Best rate unstaking operation failed.");
     }
   }
 

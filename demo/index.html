@@ -17,6 +17,8 @@
     <button id="stake">Stake 1 TON</button>
     <button id="stakeMax">Stake MAX</button>
     <button id="unstake">Unstake 1 tsTON</button>
+    <button id="unstakeInstant">Unstake 1 tsTON Instant</button>
+    <button id="unstakeBestRate">Unstake 1 tsTON Best Rate</button>
     <button id="refreshBalances">Refresh Balances</button>
     <br /><br />
     <div id="walletAddressDisplay">Wallet Address: <span id="walletAddress"></span></div>
@@ -92,6 +94,24 @@
             if (tonstakers) {
                 await tonstakers.unstake(1); // Example unstake amount
                 console.log('Unstaked 1 tsTON');
+            } else {
+                console.error('Wallet not connected');
+            }
+        });
+
+        document.getElementById('unstakeInstant').addEventListener('click', async () => {
+            if (tonstakers) {
+                await tonstakers.unstakeInstant(1); // Example unstake amount
+                console.log('Unstaked 1 tsTON Instant');
+            } else {
+                console.error('Wallet not connected');
+            }
+        });
+
+        document.getElementById('unstakeBestRate').addEventListener('click', async () => {
+            if (tonstakers) {
+                await tonstakers.unstakeBestRate(1); // Example unstake amount
+                console.log('Unstaked 1 tsTON Best Rate');
             } else {
                 console.error('Wallet not connected');
             }
