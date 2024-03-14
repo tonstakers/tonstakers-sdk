@@ -1,4 +1,4 @@
-import { beginCell, Address, toNano } from "@ton/core";
+import { beginCell, Address, toNano, fromNano } from "@ton/core";
 import { HttpClient, Api } from "tonapi-sdk-js";
 import { CONTRACT, BLOCKCHAIN, TIMING } from "./constants";
 
@@ -61,6 +61,16 @@ class Tonstakers extends EventTarget {
     });
   }
 
+  private deinitialize(): void {
+    console.log("Deinitializing Tonstakers...");
+    this.client = undefined;
+    this.walletAddress = undefined;
+    this.stakingContractAddress = undefined;
+    Tonstakers.jettonWalletAddress = undefined;
+
+    this.dispatchEvent(new Event("deinitialized"));
+  }
+
   private async setupClient(wallet: any): Promise<void> {
     console.log("Initializing Tonstakers...");
     const isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
@@ -86,16 +96,6 @@ class Tonstakers extends EventTarget {
     this.dispatchEvent(new Event("initialized"));
   }
 
-  private deinitialize(): void {
-    console.log("Deinitializing Tonstakers...");
-    this.client = undefined;
-    this.walletAddress = undefined;
-    this.stakingContractAddress = undefined;
-    Tonstakers.jettonWalletAddress = undefined;
-
-    this.dispatchEvent(new Event("deinitialized"));
-  }
-
   async stake(amount: number): Promise<void> {
     if (!this.client || !this.stakingContractAddress || !Tonstakers.jettonWalletAddress) {
       throw new Error("Tonstakers is not fully initialized.");
@@ -112,6 +112,32 @@ class Tonstakers extends EventTarget {
     }
   }
 
+  async stakeMax(): Promise<void> {
+    if (!this.client || !this.walletAddress) {
+      throw new Error("Tonstakers is not fully initialized.");
+    }
+    try {
+      let balance: number;
+      try {
+        const account = await this.client.accounts.getAccount(this.walletAddress.toString());
+        balance = Number(fromNano(account.balance));
+      } catch {
+        balance = 0;
+      }
+      const maxStakeAmount = balance - CONTRACT.RECOMMENDED_FEE_RESERVE;
+
+      if (maxStakeAmount <= 0) {
+        throw new Error("Not enough balance to stake.");
+      }
+
+      await this.stake(maxStakeAmount);
+      console.log(`Staked maximum amount of ${maxStakeAmount} TON successfully.`);
+    } catch (error) {
+      console.error("Maximum staking failed:", error instanceof Error ? error.message : error);
+      throw new Error("Maximum staking operation failed.");
+    }
+  }
+
   async unstake(amount: number, waitTillRoundEnd: boolean = false, fillOrKill: boolean = false): Promise<void> {
     if (!Tonstakers.jettonWalletAddress) {
       throw new Error("Jetton wallet address is not set.");
@@ -124,21 +150,6 @@ class Tonstakers extends EventTarget {
     } catch (error) {
       console.error("Unstaking failed:", error instanceof Error ? error.message : error);
       throw new Error("Unstaking operation failed.");
-    }
-  }
-
-  async getBalance(): Promise<number> {
-    if (!this.client || !Tonstakers.jettonWalletAddress) {
-      throw new Error("Tonstakers is not fully initialized.");
-    }
-    try {
-      const jettonWalletData = await this.client.blockchain.execGetMethodForBlockchainAccount(Tonstakers.jettonWalletAddress.toString(), "get_wallet_data");
-      const formattedBalance = jettonWalletData.decoded.balance;
-      console.log(`Current tsTON balance: ${formattedBalance}`);
-      return formattedBalance;
-    } catch (error) {
-      console.error("Failed to retrieve balance:", error instanceof Error ? error.message : error);
-      throw new Error("Could not fetch balance.");
     }
   }
 
@@ -175,6 +186,20 @@ class Tonstakers extends EventTarget {
     }
   }
 
+  async getBalance(): Promise<number> {
+    if (!this.client || !Tonstakers.jettonWalletAddress) {
+      throw new Error("Tonstakers is not fully initialized.");
+    }
+    try {
+      const jettonWalletData = await this.client.blockchain.execGetMethodForBlockchainAccount(Tonstakers.jettonWalletAddress.toString(), "get_wallet_data");
+      const formattedBalance = jettonWalletData.decoded.balance;
+      console.log(`Current tsTON balance: ${formattedBalance}`);
+      return formattedBalance;
+    } catch {
+      return 0;
+    }
+  }
+
   private async validateAmount(amount: number): Promise<void> {
     if (typeof amount !== "number" || amount <= 0) {
       throw new Error("Invalid amount specified");
@@ -193,7 +218,6 @@ class Tonstakers extends EventTarget {
         },
       ],
     };
-    console.log(transaction);
     await this.connector.sendTransaction(transaction);
   }
 }

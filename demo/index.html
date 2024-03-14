@@ -15,6 +15,7 @@
     <button id="connectWallet">Connect Wallet</button>
     <button id="disconnectWallet" style="display:none">Disconnect Wallet</button>
     <button id="stake">Stake 1 TON</button>
+    <button id="stakeMax">Stake MAX</button>
     <button id="unstake">Unstake 1 tsTON</button>
     <button id="refreshBalances">Refresh Balances</button>
     <br /><br />
@@ -69,6 +70,15 @@
             if (tonstakers) {
                 await tonstakers.stake(1); // Example stake amount
                 console.log('Staked 1 TON');
+            } else {
+                console.error('Wallet not connected');
+            }
+        });
+
+        document.getElementById('stakeMax').addEventListener('click', async () => {
+            if (tonstakers) {
+                await tonstakers.stakeMax();
+                console.log('Staked MAX TON');
             } else {
                 console.error('Wallet not connected');
             }
