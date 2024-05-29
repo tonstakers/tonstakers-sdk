@@ -14,7 +14,7 @@
     "sdk"
   ],
   "files": [
-    "dist"
+    "src"
   ],
   "dependencies": {
     "@ton/core": "^0.56.1",
