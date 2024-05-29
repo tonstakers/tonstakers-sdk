@@ -1,16 +1,21 @@
 {
   "name": "tonstakers-sdk",
-  "version": "1.0.0-alpha0",
+  "version": "0.0.0-development",
   "description": "Tonstakers SDK",
+  "license": "MIT",
+  "repository": "git@github.com:tonstakers/tonstakers-sdk.git",
   "main": "dist/src/index.js",
   "scripts": {
     "build": "webpack --mode production"
   },
+    "keywords": [
+    "tonstakers",
+    "ton",
+    "sdk"
+  ],
   "files": [
     "dist"
   ],
-  "author": "axile.dev",
-  "license": "ISC",
   "dependencies": {
     "@ton/core": "^0.56.1",
     "@ton/crypto": "^3.2.0",
