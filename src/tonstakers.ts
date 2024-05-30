@@ -32,12 +32,15 @@ interface TonstakersOptions {
 
 class Tonstakers extends EventTarget {
   private connector: IWalletConnector;
-  private client?: Api<any>;
+  private client!: Api<any>;
   private walletAddress?: Address;
   private stakingContractAddress?: Address;
   private referralCode: number;
   private static jettonWalletAddress?: Address;
   private tonApiKey?: string;
+
+  private stakingPoolInfoCache?: any;
+  private stakingPoolInfoTimestamp?: number;
 
   constructor({ connector, referralCode = CONTRACT.REFERRAL_CODE, tonApiKey }: TonstakersOptions) {
     super();
@@ -45,35 +48,13 @@ class Tonstakers extends EventTarget {
     this.referralCode = referralCode;
     this.tonApiKey = tonApiKey;
 
+    this.setupClient();
     this.initialize().catch((error) => {
       console.error("Initialization error:", error);
-      throw error;
     });
   }
 
-  private async initialize(): Promise<void> {
-    this.connector.onStatusChange(async (wallet) => {
-      if (wallet?.account?.address) {
-        this.setupClient(wallet);
-      } else {
-        this.deinitialize();
-      }
-    });
-  }
-
-  private deinitialize(): void {
-    console.log("Deinitializing Tonstakers...");
-    this.client = undefined;
-    this.walletAddress = undefined;
-    this.stakingContractAddress = undefined;
-    Tonstakers.jettonWalletAddress = undefined;
-
-    this.dispatchEvent(new Event("deinitialized"));
-  }
-
-  private async setupClient(wallet: any): Promise<void> {
-    console.log("Initializing Tonstakers...");
-    const isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
+  private async setupClient(): Promise<void> {
     const baseApiParams = this.tonApiKey
       ? {
           headers: {
@@ -83,28 +64,125 @@ class Tonstakers extends EventTarget {
         }
       : {};
     const httpClient = new HttpClient({
-      baseUrl: isTestnet ? BLOCKCHAIN.API_URL_TESTNET : BLOCKCHAIN.API_URL,
+      baseUrl: BLOCKCHAIN.API_URL,
       baseApiParams,
     });
     this.client = new Api(httpClient);
-    this.walletAddress = Address.parse(wallet.account.address);
-    this.stakingContractAddress = Address.parse(isTestnet ? CONTRACT.STAKING_CONTRACT_ADDRESS_TESTNET : CONTRACT.STAKING_CONTRACT_ADDRESS);
-    if (!Tonstakers.jettonWalletAddress) {
-      Tonstakers.jettonWalletAddress = await Tonstakers.getJettonWalletAddress(this.client, this.stakingContractAddress, this.walletAddress);
-    }
+    this.stakingContractAddress = Address.parse(CONTRACT.STAKING_CONTRACT_ADDRESS);
+  }
 
+  private async initialize(): Promise<void> {
+    this.connector.onStatusChange(async (wallet) => {
+      if (wallet?.account?.address) {
+        await this.setupWallet(wallet);
+      } else {
+        this.deinitialize();
+      }
+    });
+  }
+
+  private deinitialize(): void {
+    console.log("Deinitializing Tonstakers...");
+    this.walletAddress = undefined;
+    Tonstakers.jettonWalletAddress = undefined;
+    this.dispatchEvent(new Event("deinitialized"));
+  }
+
+  private async setupWallet(wallet: any): Promise<void> {
+    console.log("Setting up wallet for Tonstakers...");
+    const isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
+    this.walletAddress = Address.parse(wallet.account.address);
+    if (!Tonstakers.jettonWalletAddress) {
+      Tonstakers.jettonWalletAddress = await Tonstakers.getJettonWalletAddress(this.client, this.stakingContractAddress!, this.walletAddress);
+    }
     this.dispatchEvent(new Event("initialized"));
   }
 
-  async stake(amount: number): Promise<void> {
-    if (!this.client || !this.stakingContractAddress || !Tonstakers.jettonWalletAddress) {
-      throw new Error("Tonstakers is not fully initialized.");
+  private async fetchStakingPoolInfo() {
+    const now = Date.now();
+    if (this.stakingPoolInfoCache && this.stakingPoolInfoTimestamp && now - this.stakingPoolInfoTimestamp < TIMING.CACHE_TIMEOUT) {
+      return this.stakingPoolInfoCache;
     }
+
+    const response = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress!.toString());
+    this.stakingPoolInfoCache = response;
+    this.stakingPoolInfoTimestamp = now;
+    return response;
+  }
+
+  async getCurrentApy(): Promise<number> {
+    if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
+    try {
+      const response = await this.fetchStakingPoolInfo();
+      return response.pool.apy;
+    } catch {
+      console.error("Failed to get current APY");
+      throw new Error("Could not retrieve current APY.");
+    }
+  }
+
+  async getHistoricalApy(): Promise<any> {
+    if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
+    try {
+      const response = await this.client!.staking.getStakingPoolHistory(this.stakingContractAddress.toString());
+      return response.apy;
+    } catch {
+      console.error("Failed to get historical APY");
+      throw new Error("Could not retrieve historical APY.");
+    }
+  }
+
+  async getTvl(): Promise<number> {
+    if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
+    try {
+      const response = await this.fetchStakingPoolInfo();
+      return response.pool.total_amount;
+    } catch {
+      console.error("Failed to get TVL");
+      throw new Error("Could not retrieve TVL.");
+    }
+  }
+
+  async getStakersCount(): Promise<number> {
+    if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
+    try {
+      const response = await this.fetchStakingPoolInfo();
+      return response.pool.current_nominators;
+    } catch {
+      console.error("Failed to get stakers count");
+      throw new Error("Could not retrieve stakers count.");
+    }
+  }
+
+  async getStakedBalance(): Promise<number> {
+    if (!Tonstakers.jettonWalletAddress) throw new Error("Jetton wallet address is not set.");
+    try {
+      const jettonWalletData = await this.client!.blockchain.execGetMethodForBlockchainAccount(Tonstakers.jettonWalletAddress.toString(), "get_wallet_data");
+      const formattedBalance = jettonWalletData.decoded.balance;
+      console.log(`Current tsTON balance: ${formattedBalance}`);
+      return formattedBalance;
+    } catch {
+      return 0;
+    }
+  }
+
+  async getAvailableBalance(): Promise<number> {
+    if (!this.walletAddress) throw new Error("Wallet is not connected.");
+    try {
+      const account = await this.client!.accounts.getAccount(this.walletAddress.toString());
+      return Number(fromNano(account.balance)) - CONTRACT.RECOMMENDED_FEE_RESERVE;
+    } catch {
+      return 0;
+    }
+  }
+
+  async stake(amount: number): Promise<void> {
+    if (!this.walletAddress || !Tonstakers.jettonWalletAddress) throw new Error("Tonstakers is not fully initialized.");
     try {
       await this.validateAmount(amount);
       const totalAmount = toNano(amount + CONTRACT.STAKE_FEE_RES); // Includes transaction fee
       const payload = this.preparePayload("stake", amount);
-      await this.sendTransaction(this.stakingContractAddress, totalAmount, payload);
+      await this.sendTransaction(this.stakingContractAddress!, totalAmount, payload);
       console.log(`Staked ${amount} TON successfully.`);
     } catch (error) {
       console.error("Staking failed:", error instanceof Error ? error.message : error);
@@ -124,9 +202,7 @@ class Tonstakers extends EventTarget {
   }
 
   async unstake(amount: number): Promise<void> {
-    if (!Tonstakers.jettonWalletAddress) {
-      throw new Error("Jetton wallet address is not set.");
-    }
+    if (!Tonstakers.jettonWalletAddress) throw new Error("Jetton wallet address is not set.");
     try {
       await this.validateAmount(amount);
       const payload = this.preparePayload("unstake", amount);
@@ -139,9 +215,7 @@ class Tonstakers extends EventTarget {
   }
 
   async unstakeInstant(amount: number): Promise<void> {
-    if (!Tonstakers.jettonWalletAddress) {
-      throw new Error("Jetton wallet address is not set.");
-    }
+    if (!Tonstakers.jettonWalletAddress) throw new Error("Jetton wallet address is not set.");
     try {
       await this.validateAmount(amount);
       const payload = this.preparePayload("unstake", amount, false, true);
@@ -154,9 +228,7 @@ class Tonstakers extends EventTarget {
   }
 
   async unstakeBestRate(amount: number): Promise<void> {
-    if (!Tonstakers.jettonWalletAddress) {
-      throw new Error("Jetton wallet address is not set.");
-    }
+    if (!Tonstakers.jettonWalletAddress) throw new Error("Jetton wallet address is not set.");
     try {
       await this.validateAmount(amount);
       const payload = this.preparePayload("unstake", amount, true);
@@ -181,7 +253,7 @@ class Tonstakers extends EventTarget {
         cell
           .storeUint(0, 64)
           .storeCoins(toNano(amount))
-          .storeAddress(this.walletAddress)
+          .storeAddress(this.walletAddress!)
           .storeMaybeRef(beginCell().storeUint(Number(waitTillRoundEnd), 1).storeUint(Number(fillOrKill), 1).endCell());
         break;
     }
@@ -201,84 +273,6 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getStakedBalance(): Promise<number> {
-    if (!this.client || !Tonstakers.jettonWalletAddress) {
-      throw new Error("Tonstakers is not fully initialized.");
-    }
-    try {
-      const jettonWalletData = await this.client.blockchain.execGetMethodForBlockchainAccount(Tonstakers.jettonWalletAddress.toString(), "get_wallet_data");
-      const formattedBalance = jettonWalletData.decoded.balance;
-      console.log(`Current tsTON balance: ${formattedBalance}`);
-      return formattedBalance;
-    } catch {
-      return 0;
-    }
-  }
-
-  async getAvailableBalance(): Promise<number> {
-    if (!this.client || !this.walletAddress) {
-      throw new Error("Tonstakers is not fully initialized.");
-    }
-    try {
-      const account = await this.client.accounts.getAccount(this.walletAddress.toString());
-      return Number(fromNano(account.balance)) - CONTRACT.RECOMMENDED_FEE_RESERVE;
-    } catch {
-      return 0;
-    }
-  }
-
-  async getCurrentApy(): Promise<number> {
-    if (!this.client || !this.stakingContractAddress) {
-      throw new Error("Tonstakers is not fully initialized.");
-    }
-    try {
-      const response = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress.toString());
-      return response.pool.apy;
-    } catch {
-      console.error("Failed to get current APY");
-      throw new Error("Could not retrieve current APY.");
-    }
-  }
-
-  async getHistoricalApy(): Promise<any> {
-    if (!this.client || !this.stakingContractAddress) {
-      throw new Error("Tonstakers is not fully initialized.");
-    }
-    try {
-      const response = await this.client.staking.getStakingPoolHistory(this.stakingContractAddress.toString());
-      return response.apy;
-    } catch {
-      console.error("Failed to get historical APY");
-      throw new Error("Could not retrieve historical APY.");
-    }
-  }
-
-  async getTvl(): Promise<number> {
-    if (!this.client || !this.stakingContractAddress) {
-      throw new Error("Tonstakers is not fully initialized.");
-    }
-    try {
-      const response = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress.toString());
-      return response.pool.total_amount;
-    } catch {
-      console.error("Failed to get TVL");
-      throw new Error("Could not retrieve TVL.");
-    }
-  }
-
-  async getStakersCount(): Promise<number> {
-    if (!this.client || !this.stakingContractAddress) {
-      throw new Error("Tonstakers is not fully initialized.");
-    }
-    try {
-      const response = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress.toString());
-      return response.pool.current_nominators;
-    } catch {
-      console.error("Failed to get stakers count");
-      throw new Error("Could not retrieve stakers count.");
-    }
-  }
-
   private async validateAmount(amount: number): Promise<void> {
     if (typeof amount !== "number" || amount <= 0) {
       throw new Error("Invalid amount specified");
@@ -287,7 +281,7 @@ class Tonstakers extends EventTarget {
 
   private async sendTransaction(address: Address, amount: bigint, payload: string): Promise<void> {
     const validUntil = +new Date() + TIMING.TIMEOUT;
-    const transaction = {
+    const transaction: TransactionDetails = {
       validUntil,
       messages: [
         {

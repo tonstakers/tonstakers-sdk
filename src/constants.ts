@@ -2,6 +2,7 @@
 export const TIMING = {
   DEFAULT_INTERVAL: 5000,
   TIMEOUT: 600000,
+  CACHE_TIMEOUT: 30000,
 };
 
 // Blockchain-related constants

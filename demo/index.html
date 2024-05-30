@@ -38,15 +38,28 @@
         const { Tonstakers } = TonstakersSDK;
         const tonstakers = new Tonstakers({
             connector,
-            referralCode: 123456
+            referralCode: 123456,
+        });
+
+        // Fetch and display APY, TVL, and Stakers count on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const apy = await tonstakers.getCurrentApy();
+                document.getElementById('apy').innerText = apy;
+
+                const tvl = await tonstakers.getTvl();
+                document.getElementById('tvl').innerText = tvl / 1000000000;
+
+                const stakers = await tonstakers.getStakersCount();
+                document.getElementById('stakers').innerText = stakers;
+            } catch (error) {
+                console.error('Error fetching initial data:', error);
+            }
         });
 
         tonstakers.addEventListener('initialized', async () => {
             getStakedBalance();
             getAvailableBalance();
-            getApy();
-            getTvl();
-            getStakers();
         });
 
         const unsubscribe = tonConnectUI.onStatusChange(
@@ -59,7 +72,6 @@
                     document.getElementById('disconnectWallet').style.display = 'inline';
 
                     getWalletBalance();
-
                 }
             }
         );
@@ -144,21 +156,6 @@
         async function getAvailableBalance() {
             const availableBalance = await tonstakers.getAvailableBalance();
             document.getElementById('availableBalance').innerText = availableBalance / 1000000000;
-        }
-
-        async function getApy() {
-            const apy = await tonstakers.getCurrentApy();
-            document.getElementById('apy').innerText = apy;
-        }
-
-        async function getTvl() {
-            const tvl = await tonstakers.getTvl();
-            document.getElementById('tvl').innerText = tvl / 1000000000;
-        }
-
-        async function getStakers() {
-            const stakers = await tonstakers.getStakersCount();
-            document.getElementById('stakers').innerText = stakers;
         }
 
         document.getElementById('refreshBalances').addEventListener('click', () => {
