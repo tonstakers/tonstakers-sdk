@@ -20,6 +20,7 @@
     <button id="unstakeInstant">Unstake 1 tsTON Instant</button>
     <button id="unstakeBestRate">Unstake 1 tsTON Best Rate</button>
     <button id="refreshBalances">Refresh Balances</button>
+    <button id="getPoolData">Get Pool Data</button>
     <br /><br />
     <div id="walletAddressDisplay">Wallet Address: <span id="walletAddress"></span></div>
     <div id="balanceDisplay">Balance TON: <span id="balance"></span></div>
@@ -28,6 +29,10 @@
     <div id="apyDisplay">APY: <span id="apy"></span></div>
     <div id="tvlDisplay">TVL: <span id="tvl"></span></div>
     <div id="stakersDisplay">Stakers: <span id="stakers"></span></div>
+    <div id="TONUSDRateDisplay">1 TON = <span id="TONUSD">0</span>$</div>
+    <div id="TONtsTONRateDisplay">1 tsTON = <span id="tsTONTON">0</span> TON</div>
+    <br /><br />
+    <code id="poolDataDisplay"></code>
 
     <script>
         const connector = new TonConnectSDK.TonConnect({
@@ -52,6 +57,10 @@
 
                 const stakers = await tonstakers.getStakersCount();
                 document.getElementById('stakers').innerText = stakers;
+
+                const rates = await tonstakers.getRates();
+                document.getElementById('TONUSD').innerText = rates.TONUSD;
+                document.getElementById('tsTONTON').innerText = rates.tsTONTON;
             } catch (error) {
                 console.error('Error fetching initial data:', error);
             }
@@ -133,6 +142,11 @@
             } else {
                 console.error('Wallet not connected');
             }
+        });
+
+        document.getElementById('getPoolData').addEventListener('click', async () => {
+            const poolData = await tonstakers.fetchStakingPoolInfo();
+            document.getElementById('poolDataDisplay').innerText = JSON.stringify(poolData, null, 2);
         });
 
         async function getWalletBalance() {

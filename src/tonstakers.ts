@@ -93,18 +93,23 @@ class Tonstakers extends EventTarget {
     const isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
     this.walletAddress = Address.parse(wallet.account.address);
     if (!Tonstakers.jettonWalletAddress) {
-      Tonstakers.jettonWalletAddress = await Tonstakers.getJettonWalletAddress(this.client, this.stakingContractAddress!, this.walletAddress);
+      Tonstakers.jettonWalletAddress = await this.getJettonWalletAddress(this.walletAddress);
     }
     this.dispatchEvent(new Event("initialized"));
   }
 
-  private async fetchStakingPoolInfo() {
+  async fetchStakingPoolInfo() {
     const now = Date.now();
     if (this.stakingPoolInfoCache && this.stakingPoolInfoTimestamp && now - this.stakingPoolInfoTimestamp < TIMING.CACHE_TIMEOUT) {
       return this.stakingPoolInfoCache;
     }
 
-    const response = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress!.toString());
+    const poolInfo = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress!.toString());
+    const poolFullData = await this.client.blockchain.execGetMethodForBlockchainAccount(this.stakingContractAddress!.toString(), "get_pool_full_data");
+    const response = {
+      poolInfo: poolInfo.pool,
+      poolFullData: poolFullData.decoded,
+    };
     this.stakingPoolInfoCache = response;
     this.stakingPoolInfoTimestamp = now;
     return response;
@@ -114,7 +119,7 @@ class Tonstakers extends EventTarget {
     if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
     try {
       const response = await this.fetchStakingPoolInfo();
-      return response.pool.apy;
+      return response.poolInfo.apy;
     } catch {
       console.error("Failed to get current APY");
       throw new Error("Could not retrieve current APY.");
@@ -136,7 +141,7 @@ class Tonstakers extends EventTarget {
     if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
     try {
       const response = await this.fetchStakingPoolInfo();
-      return response.pool.total_amount;
+      return response.poolInfo.total_amount;
     } catch {
       console.error("Failed to get TVL");
       throw new Error("Could not retrieve TVL.");
@@ -147,10 +152,38 @@ class Tonstakers extends EventTarget {
     if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
     try {
       const response = await this.fetchStakingPoolInfo();
-      return response.pool.current_nominators;
+      return response.poolInfo.current_nominators;
     } catch {
       console.error("Failed to get stakers count");
       throw new Error("Could not retrieve stakers count.");
+    }
+  }
+
+  async getRates(): Promise<any> {
+    if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
+    try {
+      const poolData = await this.fetchStakingPoolInfo();
+      const poolBalance = poolData.poolFullData.total_balance;
+      const poolSupply = poolData.poolFullData.supply;
+      const tsTONTON = poolBalance / poolSupply;
+      const TONUSD = await this.getTonPrice();
+      return {
+        TONUSD,
+        tsTONTON,
+      };
+    } catch {
+      console.error("Failed to get rates");
+      throw new Error("Could not retrieve rates.");
+    }
+  }
+
+  private async getTonPrice(): Promise<number> {
+    try {
+      const response = await this.client!.rates.getRates({ tokens: ["ton"], currencies: ["usd"] });
+      const tonPrice = response.rates?.TON?.prices?.USD;
+      return tonPrice!;
+    } catch {
+      return 0;
     }
   }
 
@@ -261,11 +294,11 @@ class Tonstakers extends EventTarget {
     return cell.endCell().toBoc().toString("base64");
   }
 
-  private static async getJettonWalletAddress(client: Api<any>, stakingContractAddress: Address, walletAddress: Address): Promise<Address> {
+  private async getJettonWalletAddress(walletAddress: Address): Promise<Address> {
     try {
-      const responsePool = await client.staking.getStakingPoolInfo(stakingContractAddress.toString());
-      const jettonMinterAddress = Address.parse(responsePool.pool.liquid_jetton_master!);
-      const responseJetton = await client.blockchain.execGetMethodForBlockchainAccount(jettonMinterAddress.toString(), "get_wallet_address", { args: [walletAddress.toString()] });
+      const responsePool = await this.fetchStakingPoolInfo();
+      const jettonMinterAddress = Address.parse(responsePool.poolInfo.liquid_jetton_master!);
+      const responseJetton = await this.client.blockchain.execGetMethodForBlockchainAccount(jettonMinterAddress.toString(), "get_wallet_address", { args: [walletAddress.toString()] });
       return Address.parse(responseJetton.decoded.jetton_wallet_address);
     } catch (error) {
       console.error("Failed to get jetton wallet address:", error instanceof Error ? error.message : error);
