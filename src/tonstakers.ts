@@ -163,13 +163,20 @@ class Tonstakers extends EventTarget {
     if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
     try {
       const poolData = await this.fetchStakingPoolInfo();
+
       const poolBalance = poolData.poolFullData.total_balance;
       const poolSupply = poolData.poolFullData.supply;
       const tsTONTON = poolBalance / poolSupply;
+
+      const poolProjectedBalance = poolData.poolFullData.projected_balance;
+      const poolProjectedSupply = poolData.poolFullData.projected_supply;
+      const tsTONTONProjected = poolProjectedBalance / poolProjectedSupply;
+
       const TONUSD = await this.getTonPrice();
       return {
         TONUSD,
         tsTONTON,
+        tsTONTONProjected,
       };
     } catch {
       console.error("Failed to get rates");
