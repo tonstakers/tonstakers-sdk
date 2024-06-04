@@ -210,7 +210,8 @@ class Tonstakers extends EventTarget {
     if (!this.walletAddress) throw new Error("Wallet is not connected.");
     try {
       const account = await this.client!.accounts.getAccount(this.walletAddress.toString());
-      return Number(fromNano(account.balance)) - CONTRACT.RECOMMENDED_FEE_RESERVE;
+      const balance = Number(account.balance) - Number(toNano(CONTRACT.RECOMMENDED_FEE_RESERVE));
+      return Math.max(balance, 0);
     } catch {
       return 0;
     }
@@ -222,8 +223,9 @@ class Tonstakers extends EventTarget {
       await this.validateAmount(amount);
       const totalAmount = toNano(amount + CONTRACT.STAKE_FEE_RES); // Includes transaction fee
       const payload = this.preparePayload("stake", amount);
-      await this.sendTransaction(this.stakingContractAddress!, totalAmount, payload);
+      const result = await this.sendTransaction(this.stakingContractAddress!, totalAmount, payload);
       console.log(`Staked ${amount} TON successfully.`);
+      return result;
     } catch (error) {
       console.error("Staking failed:", error instanceof Error ? error.message : error);
       throw new Error("Staking operation failed.");
@@ -233,8 +235,9 @@ class Tonstakers extends EventTarget {
   async stakeMax(): Promise<void> {
     try {
       const availableBalance = await this.getAvailableBalance();
-      await this.stake(availableBalance);
+      const result = await this.stake(availableBalance);
       console.log(`Staked maximum amount of ${availableBalance} TON successfully.`);
+      return result;
     } catch (error) {
       console.error("Maximum staking failed:", error instanceof Error ? error.message : error);
       throw new Error("Maximum staking operation failed.");
@@ -246,8 +249,9 @@ class Tonstakers extends EventTarget {
     try {
       await this.validateAmount(amount);
       const payload = this.preparePayload("unstake", amount);
-      await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(CONTRACT.UNSTAKE_FEE_RES), payload); // Includes transaction fee
+      const result = await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(CONTRACT.UNSTAKE_FEE_RES), payload); // Includes transaction fee
       console.log(`Initiated unstaking of ${amount} tsTON.`);
+      return result;
     } catch (error) {
       console.error("Unstaking failed:", error instanceof Error ? error.message : error);
       throw new Error("Unstaking operation failed.");
@@ -259,8 +263,9 @@ class Tonstakers extends EventTarget {
     try {
       await this.validateAmount(amount);
       const payload = this.preparePayload("unstake", amount, false, true);
-      await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(CONTRACT.UNSTAKE_FEE_RES), payload); // Includes transaction fee
+      const result = await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(CONTRACT.UNSTAKE_FEE_RES), payload); // Includes transaction fee
       console.log(`Initiated instant unstaking of ${amount} tsTON.`);
+      return result;
     } catch (error) {
       console.error("Instant unstaking failed:", error instanceof Error ? error.message : error);
       throw new Error("Instant unstaking operation failed.");
@@ -272,8 +277,9 @@ class Tonstakers extends EventTarget {
     try {
       await this.validateAmount(amount);
       const payload = this.preparePayload("unstake", amount, true);
-      await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(CONTRACT.UNSTAKE_FEE_RES), payload); // Includes transaction fee
+      const result = await this.sendTransaction(Tonstakers.jettonWalletAddress, toNano(CONTRACT.UNSTAKE_FEE_RES), payload); // Includes transaction fee
       console.log(`Initiated unstaking of ${amount} tsTON at the best rate.`);
+      return result;
     } catch (error) {
       console.error("Best rate unstaking failed:", error instanceof Error ? error.message : error);
       throw new Error("Best rate unstaking operation failed.");
@@ -319,7 +325,7 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  private async sendTransaction(address: Address, amount: bigint, payload: string): Promise<void> {
+  private sendTransaction(address: Address, amount: bigint, payload: string): Promise<void> {
     const validUntil = +new Date() + TIMING.TIMEOUT;
     const transaction: TransactionDetails = {
       validUntil,
@@ -331,7 +337,7 @@ class Tonstakers extends EventTarget {
         },
       ],
     };
-    await this.connector.sendTransaction(transaction);
+    return this.connector.sendTransaction(transaction);
   }
 }
 
