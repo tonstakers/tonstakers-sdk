@@ -1,14 +1,15 @@
 {
   "name": "tonstakers-sdk",
-  "version": "0.0.1-development",
+  "version": "0.0.2-development",
   "description": "Tonstakers SDK",
   "license": "MIT",
   "repository": "git@github.com:tonstakers/tonstakers-sdk.git",
-  "main": "dist/src/index.js",
+  "main": "dist/tonstakers-sdk.min.js",
+  "module": "dist/tonstakers-sdk.min.js",
   "scripts": {
     "build": "webpack --mode production"
   },
-    "keywords": [
+  "keywords": [
     "tonstakers",
     "ton",
     "sdk"
