@@ -39,9 +39,9 @@ Replace `"path/to/tonstakers-sdk.min.js"` with the actual SDK path.
 Initialize the SDK with your wallet connector and optional parameters:
 
 ```javascript
-import { Tonstakers } from "tonstakers-sdk";
+import { TonstakersSDK } from "tonstakers-sdk";
 
-const tonstakers = new Tonstakers({
+const tonstakers = new TonstakersSDK.Tonstakers({
   connector: yourWalletConnector, // Your wallet connector instance
   referralCode: 123456, // Optional referral code
   tonApiKey: "YOUR_API_KEY", // Optional API key for tonapi
@@ -55,6 +55,8 @@ Direct HTML file initialization:
 ```html
 <script src="path/to/tonstakers-sdk.min.js"></script>
 <script>
+  const { Tonstakers } = TonstakersSDK;
+
   const tonstakers = new Tonstakers({
     connector: yourWalletConnector,
     referralCode: 123456,
@@ -107,6 +109,11 @@ console.log(`Total Value Locked (TVL): ${tvl}`);
 
 const stakersCount = await tonstakers.getStakersCount();
 console.log(`Current number of stakers: ${stakersCount}`);
+
+const rates = await tonstakers.getRates();
+console.log(`1 TON = ${rates.TONUSD} USD`);
+console.log(`1 tsTON = ${rates.tsTONTON} TON`);
+console.log(`Projected 1 tsTON = ${rates.tsTONTONProjected} TON`);
 ```
 
 ## Demo
