@@ -1,4 +1,4 @@
-import { beginCell, Address, toNano, fromNano } from "@ton/core";
+import { beginCell, Address, toNano } from "@ton/core";
 import { HttpClient, Api, Account } from "tonapi-sdk-js";
 import { CONTRACT, BLOCKCHAIN, TIMING } from "./constants";
 import { NetworkCache } from "./cache";
