@@ -1,6 +1,7 @@
 import { beginCell, Address, toNano, fromNano } from "@ton/core";
-import { HttpClient, Api } from "tonapi-sdk-js";
+import { HttpClient, Api, Account } from "tonapi-sdk-js";
 import { CONTRACT, BLOCKCHAIN, TIMING } from "./constants";
+import { NetworkCache } from "./cache";
 
 interface TransactionMessage {
   address: string;
@@ -28,6 +29,7 @@ interface TonstakersOptions {
   connector: IWalletConnector;
   referralCode?: number;
   tonApiKey?: string;
+  cacheFor?: number;
 }
 
 class Tonstakers extends EventTarget {
@@ -38,15 +40,21 @@ class Tonstakers extends EventTarget {
   private referralCode: number;
   private static jettonWalletAddress?: Address;
   private tonApiKey?: string;
+  private cache: NetworkCache;
 
-  private stakingPoolInfoCache?: any;
-  private stakingPoolInfoTimestamp?: number;
-
-  constructor({ connector, referralCode = CONTRACT.REFERRAL_CODE, tonApiKey }: TonstakersOptions) {
+  constructor({
+    connector,
+    referralCode = CONTRACT.REFERRAL_CODE,
+    tonApiKey,
+    cacheFor,
+  }: TonstakersOptions) {
     super();
     this.connector = connector;
     this.referralCode = referralCode;
     this.tonApiKey = tonApiKey;
+    this.cache = new NetworkCache(
+      cacheFor === undefined ? TIMING.CACHE_TIMEOUT : cacheFor,
+    );
 
     this.setupClient();
     this.initialize().catch((error) => {
@@ -68,7 +76,9 @@ class Tonstakers extends EventTarget {
       baseApiParams,
     });
     this.client = new Api(httpClient);
-    this.stakingContractAddress = Address.parse(CONTRACT.STAKING_CONTRACT_ADDRESS);
+    this.stakingContractAddress = Address.parse(
+      CONTRACT.STAKING_CONTRACT_ADDRESS,
+    );
   }
 
   private async initialize(): Promise<void> {
@@ -99,9 +109,8 @@ class Tonstakers extends EventTarget {
   }
 
   async fetchStakingPoolInfo() {
-    const now = Date.now();
-    if (this.stakingPoolInfoCache && this.stakingPoolInfoTimestamp && now - this.stakingPoolInfoTimestamp < TIMING.CACHE_TIMEOUT) {
-      return this.stakingPoolInfoCache;
+    if (this.cache.isFresh("poolInfo")) {
+      return this.cache.getData("poolInfo");
     }
 
     const poolInfo = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress!.toString());
@@ -110,8 +119,7 @@ class Tonstakers extends EventTarget {
       poolInfo: poolInfo.pool,
       poolFullData: poolFullData.decoded,
     };
-    this.stakingPoolInfoCache = response;
-    this.stakingPoolInfoTimestamp = now;
+    this.cache.setData("poolInfo", response);
     return response;
   }
 
@@ -185,6 +193,9 @@ class Tonstakers extends EventTarget {
   }
 
   private async getTonPrice(): Promise<number> {
+    if (this.cache.isFresh("tonPrice")) {
+      return this.cache.getData("tonPrice");
+    }
     try {
       const response = await this.client!.rates.getRates({ tokens: ["ton"], currencies: ["usd"] });
       const tonPrice = response.rates?.TON?.prices?.USD;
@@ -195,11 +206,28 @@ class Tonstakers extends EventTarget {
   }
 
   async getStakedBalance(): Promise<number> {
-    if (!Tonstakers.jettonWalletAddress) throw new Error("Jetton wallet address is not set.");
+    if (!Tonstakers.jettonWalletAddress)
+      throw new Error("Jetton wallet address is not set.");
+
+    const addressString = Tonstakers.jettonWalletAddress.toString();
+    const cacheKey = `stakedBalance-${addressString}`;
+
+    if (this.cache.isFresh(cacheKey)) {
+      return this.cache.getData(cacheKey);
+    }
+
     try {
-      const jettonWalletData = await this.client!.blockchain.execGetMethodForBlockchainAccount(Tonstakers.jettonWalletAddress.toString(), "get_wallet_data");
+      const jettonWalletData =
+        await this.client!.blockchain.execGetMethodForBlockchainAccount(
+          addressString,
+          "get_wallet_data",
+        );
+
       const formattedBalance = jettonWalletData.decoded.balance;
       console.log(`Current tsTON balance: ${formattedBalance}`);
+
+      this.cache.setData(cacheKey, formattedBalance);
+
       return formattedBalance;
     } catch {
       return 0;
@@ -208,9 +236,24 @@ class Tonstakers extends EventTarget {
 
   async getAvailableBalance(): Promise<number> {
     if (!this.walletAddress) throw new Error("Wallet is not connected.");
+
     try {
-      const account = await this.client!.accounts.getAccount(this.walletAddress.toString());
-      const balance = Number(account.balance) - Number(toNano(CONTRACT.RECOMMENDED_FEE_RESERVE));
+      let account: Account;
+
+      if (this.cache.isFresh("account")) {
+        account = this.cache.getData("account");
+      } else {
+        account = await this.client!.accounts.getAccount(
+          this.walletAddress.toString(),
+        );
+
+        this.cache.setData("account", account);
+      }
+
+      const balance =
+        Number(account.balance) -
+        Number(toNano(CONTRACT.RECOMMENDED_FEE_RESERVE));
+
       return Math.max(balance, 0);
     } catch {
       return 0;
