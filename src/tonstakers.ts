@@ -1,5 +1,5 @@
 import { beginCell, Address, toNano } from "@ton/core";
-import { HttpClient, Api, Account } from "tonapi-sdk-js";
+import { HttpClient, Api, Account, ApyHistory } from "tonapi-sdk-js";
 import { CONTRACT, BLOCKCHAIN, TIMING } from "./constants";
 import { NetworkCache } from "./cache";
 
@@ -148,14 +148,22 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getHistoricalApy(): Promise<any> {
+  async getHistoricalApy(): Promise<{ apy: ApyHistory[] }> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      const response = await this.client!.staking.getStakingPoolHistory(
-        this.stakingContractAddress.toString(),
-      );
-      return response.apy;
+      if (!this.cache.isFresh("stakingHistory")) {
+        this.cache.setData(
+          "stakingHistory",
+          this.client!.staking.getStakingPoolHistory(
+            this.stakingContractAddress.toString(),
+          ),
+        );
+      }
+
+      const stakingHistory = await this.cache.getData("stakingHistory");
+
+      return stakingHistory.apy;
     } catch {
       console.error("Failed to get historical APY");
       throw new Error("Could not retrieve historical APY.");
@@ -218,13 +226,18 @@ class Tonstakers extends EventTarget {
     }
 
     try {
-      const response = await this.client!.rates.getRates({
-        tokens: ["ton"],
-        currencies: ["usd"],
-      });
-      const tonPrice = response.rates?.TON?.prices?.USD;
+      if (!this.cache.isFresh("tonPrice")) {
+        this.cache.setData(
+          "tonPrice",
+          this.client!.rates.getRates({
+            tokens: ["ton"],
+            currencies: ["usd"],
+          }),
+        );
+      }
 
-      this.cache.setData("tonPrice", tonPrice);
+      const response = await this.cache.getData("tonPrice");
+      const tonPrice = response.rates?.TON?.prices?.USD;
 
       return tonPrice!;
     } catch {
@@ -265,17 +278,14 @@ class Tonstakers extends EventTarget {
     if (!this.walletAddress) throw new Error("Wallet is not connected.");
 
     try {
-      let account: Account;
-
-      if (this.cache.isFresh("account")) {
-        account = await this.cache.getData("account");
-      } else {
-        account = await this.client!.accounts.getAccount(
-          this.walletAddress.toString(),
+      if (!this.cache.isFresh("account")) {
+        this.cache.setData(
+          "account",
+          this.client!.accounts.getAccount(this.walletAddress.toString()),
         );
-
-        this.cache.setData("account", account);
       }
+
+      const account = await this.cache.getData("account");
 
       const balance =
         Number(account.balance) -

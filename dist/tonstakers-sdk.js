@@ -18147,9 +18147,12 @@ class mt extends EventTarget {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      return (await this.client.staking.getStakingPoolHistory(
-        this.stakingContractAddress.toString()
-      )).apy;
+      return this.cache.isFresh("stakingHistory") || this.cache.setData(
+        "stakingHistory",
+        this.client.staking.getStakingPoolHistory(
+          this.stakingContractAddress.toString()
+        )
+      ), (await this.cache.getData("stakingHistory")).apy;
     } catch {
       throw console.error("Failed to get historical APY"), new Error("Could not retrieve historical APY.");
     }
@@ -18191,11 +18194,13 @@ class mt extends EventTarget {
     if (this.cache.isFresh("tonPrice"))
       return this.cache.getData("tonPrice");
     try {
-      const f = (i = (r = (e = (await this.client.rates.getRates({
-        tokens: ["ton"],
-        currencies: ["usd"]
-      })).rates) == null ? void 0 : e.TON) == null ? void 0 : r.prices) == null ? void 0 : i.USD;
-      return this.cache.setData("tonPrice", f), f;
+      return this.cache.isFresh("tonPrice") || this.cache.setData(
+        "tonPrice",
+        this.client.rates.getRates({
+          tokens: ["ton"],
+          currencies: ["usd"]
+        })
+      ), (i = (r = (e = (await this.cache.getData("tonPrice")).rates) == null ? void 0 : e.TON) == null ? void 0 : r.prices) == null ? void 0 : i.USD;
     } catch {
       return 0;
     }
@@ -18219,11 +18224,11 @@ class mt extends EventTarget {
   async getAvailableBalance() {
     if (!this.walletAddress) throw new Error("Wallet is not connected.");
     try {
-      let e;
-      this.cache.isFresh("account") ? e = await this.cache.getData("account") : (e = await this.client.accounts.getAccount(
-        this.walletAddress.toString()
-      ), this.cache.setData("account", e));
-      const r = Number(e.balance) - Number(pt.toNano(Mt.RECOMMENDED_FEE_RESERVE));
+      this.cache.isFresh("account") || this.cache.setData(
+        "account",
+        this.client.accounts.getAccount(this.walletAddress.toString())
+      );
+      const e = await this.cache.getData("account"), r = Number(e.balance) - Number(pt.toNano(Mt.RECOMMENDED_FEE_RESERVE));
       return Math.max(r, 0);
     } catch {
       return 0;

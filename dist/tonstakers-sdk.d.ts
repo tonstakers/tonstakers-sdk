@@ -1,3 +1,5 @@
+import { ApyHistory } from 'tonapi-sdk-js';
+
 declare interface IWalletConnector {
     wallet: {
         account?: WalletAccount;
@@ -22,7 +24,9 @@ export declare class Tonstakers extends EventTarget {
     private setupWallet;
     fetchStakingPoolInfo(): Promise<any>;
     getCurrentApy(): Promise<number>;
-    getHistoricalApy(): Promise<any>;
+    getHistoricalApy(): Promise<{
+        apy: ApyHistory[];
+    }>;
     getTvl(): Promise<number>;
     getStakersCount(): Promise<number>;
     getRates(): Promise<any>;

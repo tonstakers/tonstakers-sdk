@@ -30,7 +30,7 @@ export class NetworkCache {
     return this.store[key].data;
   }
 
-  setData(key: string, data: any) {
+  setData(key: string, data: Promise<any>) {
     this.store[key] = {
       ts: this.time,
       data,
