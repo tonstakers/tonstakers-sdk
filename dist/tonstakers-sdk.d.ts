@@ -24,9 +24,7 @@ export declare class Tonstakers extends EventTarget {
     private setupWallet;
     fetchStakingPoolInfo(): Promise<any>;
     getCurrentApy(): Promise<number>;
-    getHistoricalApy(): Promise<{
-        apy: ApyHistory[];
-    }>;
+    getHistoricalApy(): Promise<ApyHistory[]>;
     getTvl(): Promise<number>;
     getStakersCount(): Promise<number>;
     getRates(): Promise<any>;

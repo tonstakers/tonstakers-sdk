@@ -148,7 +148,7 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getHistoricalApy(): Promise<{ apy: ApyHistory[] }> {
+  async getHistoricalApy(): Promise<ApyHistory[]> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
