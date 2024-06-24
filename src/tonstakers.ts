@@ -248,21 +248,21 @@ class Tonstakers extends EventTarget {
     const addressString = Tonstakers.jettonWalletAddress.toString();
     const cacheKey = `stakedBalance-${addressString}`;
 
-    if (this.cache.needsUpdate(cacheKey)) {
-      return this.cache.get(cacheKey);
-    }
-
     try {
-      const jettonWalletData =
-        await this.client!.blockchain.execGetMethodForBlockchainAccount(
-          addressString,
-          "get_wallet_data",
+      if (this.cache.needsUpdate(cacheKey)) {
+        this.cache.set(
+          cacheKey,
+          this.client!.blockchain.execGetMethodForBlockchainAccount(
+            addressString,
+            "get_wallet_data",
+          ),
         );
+      }
+
+      const jettonWalletData = await this.cache.get(cacheKey);
 
       const formattedBalance = jettonWalletData.decoded.balance;
       console.log(`Current tsTON balance: ${formattedBalance}`);
-
-      this.cache.set(cacheKey, formattedBalance);
 
       return formattedBalance;
     } catch {

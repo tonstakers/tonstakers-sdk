@@ -143,11 +143,11 @@ class n extends EventTarget {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      const t = await this.fetchStakingPoolInfo(), e = t.poolFullData.total_balance, s = t.poolFullData.supply, o = e / s, a = t.poolFullData.projected_balance, u = t.poolFullData.projected_supply, g = a / u;
+      const t = await this.fetchStakingPoolInfo(), e = t.poolFullData.total_balance, s = t.poolFullData.supply, o = e / s, a = t.poolFullData.projected_balance, g = t.poolFullData.projected_supply, u = a / g;
       return {
         TONUSD: await this.getTonPrice(),
         tsTONTON: o,
-        tsTONTONProjected: g
+        tsTONTONProjected: u
       };
     } catch {
       throw console.error("Failed to get rates"), new Error("Could not retrieve rates.");
@@ -171,14 +171,16 @@ class n extends EventTarget {
     if (!n.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
     const t = n.jettonWalletAddress.toString(), e = `stakedBalance-${t}`;
-    if (this.cache.needsUpdate(e))
-      return this.cache.get(e);
     try {
-      const o = (await this.client.blockchain.execGetMethodForBlockchainAccount(
-        t,
-        "get_wallet_data"
-      )).decoded.balance;
-      return console.log(`Current tsTON balance: ${o}`), this.cache.set(e, o), o;
+      this.cache.needsUpdate(e) && this.cache.set(
+        e,
+        this.client.blockchain.execGetMethodForBlockchainAccount(
+          t,
+          "get_wallet_data"
+        )
+      );
+      const o = (await this.cache.get(e)).decoded.balance;
+      return console.log(`Current tsTON balance: ${o}`), o;
     } catch {
       return 0;
     }
