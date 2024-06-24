@@ -109,18 +109,29 @@ class Tonstakers extends EventTarget {
   }
 
   async fetchStakingPoolInfo() {
-    if (this.cache.isFresh("poolInfo")) {
-      return this.cache.getData("poolInfo");
+    // several methods may fetch this at the same time, so the Promise is put to the cache instantly instead of waiting for the response
+    // if we wait for the response instead, the cache may not be filled at the moment when the next caller tries to get it, and the request will be repeated
+    if (!this.cache.isFresh("poolInfo")) {
+      const getPoolInfo = async () => {
+        const poolInfo = await this.client.staking.getStakingPoolInfo(
+          this.stakingContractAddress!.toString(),
+        );
+        const poolFullData =
+          await this.client.blockchain.execGetMethodForBlockchainAccount(
+            this.stakingContractAddress!.toString(),
+            "get_pool_full_data",
+          );
+
+        return {
+          poolInfo: poolInfo.pool,
+          poolFullData: poolFullData.decoded,
+        };
+      };
+
+      this.cache.setData("poolInfo", getPoolInfo());
     }
 
-    const poolInfo = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress!.toString());
-    const poolFullData = await this.client.blockchain.execGetMethodForBlockchainAccount(this.stakingContractAddress!.toString(), "get_pool_full_data");
-    const response = {
-      poolInfo: poolInfo.pool,
-      poolFullData: poolFullData.decoded,
-    };
-    this.cache.setData("poolInfo", response);
-    return response;
+    return this.cache.getData("poolInfo");
   }
 
   async getCurrentApy(): Promise<number> {
@@ -196,9 +207,16 @@ class Tonstakers extends EventTarget {
     if (this.cache.isFresh("tonPrice")) {
       return this.cache.getData("tonPrice");
     }
+
     try {
-      const response = await this.client!.rates.getRates({ tokens: ["ton"], currencies: ["usd"] });
+      const response = await this.client!.rates.getRates({
+        tokens: ["ton"],
+        currencies: ["usd"],
+      });
       const tonPrice = response.rates?.TON?.prices?.USD;
+
+      this.cache.setData("tonPrice", tonPrice);
+
       return tonPrice!;
     } catch {
       return 0;
@@ -241,7 +259,7 @@ class Tonstakers extends EventTarget {
       let account: Account;
 
       if (this.cache.isFresh("account")) {
-        account = this.cache.getData("account");
+        account = await this.cache.getData("account");
       } else {
         account = await this.client!.accounts.getAccount(
           this.walletAddress.toString(),

@@ -1,6 +1,6 @@
 type StorePiece = {
   ts: number;
-  data: any;
+  data: Promise<any>;
 };
 
 export class NetworkCache {
@@ -26,7 +26,7 @@ export class NetworkCache {
     return this.time - piece.ts < this.ttl;
   }
 
-  getData(key: string) {
+  async getData(key: string) {
     return this.store[key].data;
   }
 

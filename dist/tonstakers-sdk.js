@@ -18065,7 +18065,7 @@ class kc {
     const r = this.store[e];
     return r ? this.time - r.ts < this.ttl : !1;
   }
-  getData(e) {
+  async getData(e) {
     return this.store[e].data;
   }
   setData(e, r) {
@@ -18112,19 +18112,31 @@ class mt extends EventTarget {
     console.log("Deinitializing Tonstakers..."), this.walletAddress = void 0, mt.jettonWalletAddress = void 0, this.dispatchEvent(new Event("deinitialized"));
   }
   async setupWallet(e) {
-    console.log("Setting up wallet for Tonstakers..."), e.account.chain, di.CHAIN_DEV, this.walletAddress = pt.Address.parse(e.account.address), mt.jettonWalletAddress || (mt.jettonWalletAddress = await this.getJettonWalletAddress(this.walletAddress)), this.dispatchEvent(new Event("initialized"));
+    console.log("Setting up wallet for Tonstakers..."), e.account.chain, di.CHAIN_DEV, this.walletAddress = pt.Address.parse(e.account.address), mt.jettonWalletAddress || (mt.jettonWalletAddress = await this.getJettonWalletAddress(
+      this.walletAddress
+    )), this.dispatchEvent(new Event("initialized"));
   }
   async fetchStakingPoolInfo() {
-    if (this.cache.isFresh("poolInfo"))
-      return this.cache.getData("poolInfo");
-    const e = await this.client.staking.getStakingPoolInfo(this.stakingContractAddress.toString()), r = await this.client.blockchain.execGetMethodForBlockchainAccount(this.stakingContractAddress.toString(), "get_pool_full_data"), i = {
-      poolInfo: e.pool,
-      poolFullData: r.decoded
-    };
-    return this.cache.setData("poolInfo", i), i;
+    if (!this.cache.isFresh("poolInfo")) {
+      const e = async () => {
+        const r = await this.client.staking.getStakingPoolInfo(
+          this.stakingContractAddress.toString()
+        ), i = await this.client.blockchain.execGetMethodForBlockchainAccount(
+          this.stakingContractAddress.toString(),
+          "get_pool_full_data"
+        );
+        return {
+          poolInfo: r.pool,
+          poolFullData: i.decoded
+        };
+      };
+      this.cache.setData("poolInfo", e());
+    }
+    return this.cache.getData("poolInfo");
   }
   async getCurrentApy() {
-    if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
+    if (!this.stakingContractAddress)
+      throw new Error("Staking contract address not set.");
     try {
       return (await this.fetchStakingPoolInfo()).poolInfo.apy;
     } catch {
@@ -18132,15 +18144,19 @@ class mt extends EventTarget {
     }
   }
   async getHistoricalApy() {
-    if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
+    if (!this.stakingContractAddress)
+      throw new Error("Staking contract address not set.");
     try {
-      return (await this.client.staking.getStakingPoolHistory(this.stakingContractAddress.toString())).apy;
+      return (await this.client.staking.getStakingPoolHistory(
+        this.stakingContractAddress.toString()
+      )).apy;
     } catch {
       throw console.error("Failed to get historical APY"), new Error("Could not retrieve historical APY.");
     }
   }
   async getTvl() {
-    if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
+    if (!this.stakingContractAddress)
+      throw new Error("Staking contract address not set.");
     try {
       return (await this.fetchStakingPoolInfo()).poolInfo.total_amount;
     } catch {
@@ -18148,7 +18164,8 @@ class mt extends EventTarget {
     }
   }
   async getStakersCount() {
-    if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
+    if (!this.stakingContractAddress)
+      throw new Error("Staking contract address not set.");
     try {
       return (await this.fetchStakingPoolInfo()).poolInfo.current_nominators;
     } catch {
@@ -18156,7 +18173,8 @@ class mt extends EventTarget {
     }
   }
   async getRates() {
-    if (!this.stakingContractAddress) throw new Error("Staking contract address not set.");
+    if (!this.stakingContractAddress)
+      throw new Error("Staking contract address not set.");
     try {
       const e = await this.fetchStakingPoolInfo(), r = e.poolFullData.total_balance, i = e.poolFullData.supply, u = r / i, f = e.poolFullData.projected_balance, o = e.poolFullData.projected_supply, h = f / o;
       return {
@@ -18173,7 +18191,11 @@ class mt extends EventTarget {
     if (this.cache.isFresh("tonPrice"))
       return this.cache.getData("tonPrice");
     try {
-      return (i = (r = (e = (await this.client.rates.getRates({ tokens: ["ton"], currencies: ["usd"] })).rates) == null ? void 0 : e.TON) == null ? void 0 : r.prices) == null ? void 0 : i.USD;
+      const f = (i = (r = (e = (await this.client.rates.getRates({
+        tokens: ["ton"],
+        currencies: ["usd"]
+      })).rates) == null ? void 0 : e.TON) == null ? void 0 : r.prices) == null ? void 0 : i.USD;
+      return this.cache.setData("tonPrice", f), f;
     } catch {
       return 0;
     }
@@ -18198,7 +18220,7 @@ class mt extends EventTarget {
     if (!this.walletAddress) throw new Error("Wallet is not connected.");
     try {
       let e;
-      this.cache.isFresh("account") ? e = this.cache.getData("account") : (e = await this.client.accounts.getAccount(
+      this.cache.isFresh("account") ? e = await this.cache.getData("account") : (e = await this.client.accounts.getAccount(
         this.walletAddress.toString()
       ), this.cache.setData("account", e));
       const r = Number(e.balance) - Number(pt.toNano(Mt.RECOMMENDED_FEE_RESERVE));
@@ -18208,51 +18230,88 @@ class mt extends EventTarget {
     }
   }
   async stake(e) {
-    if (!this.walletAddress || !mt.jettonWalletAddress) throw new Error("Tonstakers is not fully initialized.");
+    if (!this.walletAddress || !mt.jettonWalletAddress)
+      throw new Error("Tonstakers is not fully initialized.");
     try {
       await this.validateAmount(e);
-      const r = pt.toNano(e + Mt.STAKE_FEE_RES), i = this.preparePayload("stake", e), u = await this.sendTransaction(this.stakingContractAddress, r, i);
+      const r = pt.toNano(e + Mt.STAKE_FEE_RES), i = this.preparePayload("stake", e), u = await this.sendTransaction(
+        this.stakingContractAddress,
+        r,
+        i
+      );
       return console.log(`Staked ${e} TON successfully.`), u;
     } catch (r) {
-      throw console.error("Staking failed:", r instanceof Error ? r.message : r), new Error("Staking operation failed.");
+      throw console.error(
+        "Staking failed:",
+        r instanceof Error ? r.message : r
+      ), new Error("Staking operation failed.");
     }
   }
   async stakeMax() {
     try {
       const e = await this.getAvailableBalance(), r = await this.stake(e);
-      return console.log(`Staked maximum amount of ${e} TON successfully.`), r;
+      return console.log(
+        `Staked maximum amount of ${e} TON successfully.`
+      ), r;
     } catch (e) {
-      throw console.error("Maximum staking failed:", e instanceof Error ? e.message : e), new Error("Maximum staking operation failed.");
+      throw console.error(
+        "Maximum staking failed:",
+        e instanceof Error ? e.message : e
+      ), new Error("Maximum staking operation failed.");
     }
   }
   async unstake(e) {
-    if (!mt.jettonWalletAddress) throw new Error("Jetton wallet address is not set.");
+    if (!mt.jettonWalletAddress)
+      throw new Error("Jetton wallet address is not set.");
     try {
       await this.validateAmount(e);
-      const r = this.preparePayload("unstake", e), i = await this.sendTransaction(mt.jettonWalletAddress, pt.toNano(Mt.UNSTAKE_FEE_RES), r);
+      const r = this.preparePayload("unstake", e), i = await this.sendTransaction(
+        mt.jettonWalletAddress,
+        pt.toNano(Mt.UNSTAKE_FEE_RES),
+        r
+      );
       return console.log(`Initiated unstaking of ${e} tsTON.`), i;
     } catch (r) {
-      throw console.error("Unstaking failed:", r instanceof Error ? r.message : r), new Error("Unstaking operation failed.");
+      throw console.error(
+        "Unstaking failed:",
+        r instanceof Error ? r.message : r
+      ), new Error("Unstaking operation failed.");
     }
   }
   async unstakeInstant(e) {
-    if (!mt.jettonWalletAddress) throw new Error("Jetton wallet address is not set.");
+    if (!mt.jettonWalletAddress)
+      throw new Error("Jetton wallet address is not set.");
     try {
       await this.validateAmount(e);
-      const r = this.preparePayload("unstake", e, !1, !0), i = await this.sendTransaction(mt.jettonWalletAddress, pt.toNano(Mt.UNSTAKE_FEE_RES), r);
+      const r = this.preparePayload("unstake", e, !1, !0), i = await this.sendTransaction(
+        mt.jettonWalletAddress,
+        pt.toNano(Mt.UNSTAKE_FEE_RES),
+        r
+      );
       return console.log(`Initiated instant unstaking of ${e} tsTON.`), i;
     } catch (r) {
-      throw console.error("Instant unstaking failed:", r instanceof Error ? r.message : r), new Error("Instant unstaking operation failed.");
+      throw console.error(
+        "Instant unstaking failed:",
+        r instanceof Error ? r.message : r
+      ), new Error("Instant unstaking operation failed.");
     }
   }
   async unstakeBestRate(e) {
-    if (!mt.jettonWalletAddress) throw new Error("Jetton wallet address is not set.");
+    if (!mt.jettonWalletAddress)
+      throw new Error("Jetton wallet address is not set.");
     try {
       await this.validateAmount(e);
-      const r = this.preparePayload("unstake", e, !0), i = await this.sendTransaction(mt.jettonWalletAddress, pt.toNano(Mt.UNSTAKE_FEE_RES), r);
+      const r = this.preparePayload("unstake", e, !0), i = await this.sendTransaction(
+        mt.jettonWalletAddress,
+        pt.toNano(Mt.UNSTAKE_FEE_RES),
+        r
+      );
       return console.log(`Initiated unstaking of ${e} tsTON at the best rate.`), i;
     } catch (r) {
-      throw console.error("Best rate unstaking failed:", r instanceof Error ? r.message : r), new Error("Best rate unstaking operation failed.");
+      throw console.error(
+        "Best rate unstaking failed:",
+        r instanceof Error ? r.message : r
+      ), new Error("Best rate unstaking operation failed.");
     }
   }
   preparePayload(e, r, i = !1, u = !1) {
@@ -18262,17 +18321,28 @@ class mt extends EventTarget {
         f.storeUint(Mt.PAYLOAD_STAKE, 32), f.storeUint(1, 64).storeUint(this.referralCode, 64);
         break;
       case "unstake":
-        f.storeUint(Mt.PAYLOAD_UNSTAKE, 32), f.storeUint(0, 64).storeCoins(pt.toNano(r)).storeAddress(this.walletAddress).storeMaybeRef(pt.beginCell().storeUint(Number(i), 1).storeUint(Number(u), 1).endCell());
+        f.storeUint(Mt.PAYLOAD_UNSTAKE, 32), f.storeUint(0, 64).storeCoins(pt.toNano(r)).storeAddress(this.walletAddress).storeMaybeRef(
+          pt.beginCell().storeUint(Number(i), 1).storeUint(Number(u), 1).endCell()
+        );
         break;
     }
     return f.endCell().toBoc().toString("base64");
   }
   async getJettonWalletAddress(e) {
     try {
-      const r = await this.fetchStakingPoolInfo(), i = pt.Address.parse(r.poolInfo.liquid_jetton_master), u = await this.client.blockchain.execGetMethodForBlockchainAccount(i.toString(), "get_wallet_address", { args: [e.toString()] });
+      const r = await this.fetchStakingPoolInfo(), i = pt.Address.parse(
+        r.poolInfo.liquid_jetton_master
+      ), u = await this.client.blockchain.execGetMethodForBlockchainAccount(
+        i.toString(),
+        "get_wallet_address",
+        { args: [e.toString()] }
+      );
       return pt.Address.parse(u.decoded.jetton_wallet_address);
     } catch (r) {
-      throw console.error("Failed to get jetton wallet address:", r instanceof Error ? r.message : r), new Error("Could not retrieve jetton wallet address.");
+      throw console.error(
+        "Failed to get jetton wallet address:",
+        r instanceof Error ? r.message : r
+      ), new Error("Could not retrieve jetton wallet address.");
     }
   }
   async validateAmount(e) {
