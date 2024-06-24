@@ -11,7 +11,7 @@ module.exports = defineConfig({
       formats: ["es"],
     },
     rollupOptions: {
-      // external: ["@ton/core", "@ton/crypto", "@ton/ton", "tonapi-sdk-js"],
+      external: ["@ton/core", "@ton/crypto", "@ton/ton", "tonapi-sdk-js"],
     },
   },
   plugins: [dts({ rollupTypes: true })],
