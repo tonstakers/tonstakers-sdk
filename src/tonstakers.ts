@@ -113,7 +113,7 @@ class Tonstakers extends EventTarget {
   async fetchStakingPoolInfo() {
     // several methods may fetch this at the same time, so the Promise is put to the cache instantly instead of waiting for the response
     // if we wait for the response instead, the cache may not be filled at the moment when the next caller tries to get it, and the request will be repeated
-    if (!this.cache.isFresh("poolInfo")) {
+    if (this.cache.needsUpdate("poolInfo")) {
       const getPoolInfo = async () => {
         const poolInfo = await this.client.staking.getStakingPoolInfo(
           this.stakingContractAddress!.toString(),
@@ -130,10 +130,10 @@ class Tonstakers extends EventTarget {
         };
       };
 
-      this.cache.setData("poolInfo", getPoolInfo());
+      this.cache.set("poolInfo", getPoolInfo());
     }
 
-    return this.cache.getData("poolInfo");
+    return this.cache.get("poolInfo");
   }
 
   async getCurrentApy(): Promise<number> {
@@ -152,8 +152,8 @@ class Tonstakers extends EventTarget {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      if (!this.cache.isFresh("stakingHistory")) {
-        this.cache.setData(
+      if (this.cache.needsUpdate("stakingHistory")) {
+        this.cache.set(
           "stakingHistory",
           this.client!.staking.getStakingPoolHistory(
             this.stakingContractAddress.toString(),
@@ -161,7 +161,7 @@ class Tonstakers extends EventTarget {
         );
       }
 
-      const stakingHistory = await this.cache.getData("stakingHistory");
+      const stakingHistory = await this.cache.get("stakingHistory");
 
       return stakingHistory.apy;
     } catch {
@@ -221,13 +221,9 @@ class Tonstakers extends EventTarget {
   }
 
   private async getTonPrice(): Promise<number> {
-    if (this.cache.isFresh("tonPrice")) {
-      return this.cache.getData("tonPrice");
-    }
-
     try {
-      if (!this.cache.isFresh("tonPrice")) {
-        this.cache.setData(
+      if (this.cache.needsUpdate("tonPrice")) {
+        this.cache.set(
           "tonPrice",
           this.client!.rates.getRates({
             tokens: ["ton"],
@@ -236,7 +232,7 @@ class Tonstakers extends EventTarget {
         );
       }
 
-      const response = await this.cache.getData("tonPrice");
+      const response = await this.cache.get("tonPrice");
       const tonPrice = response.rates?.TON?.prices?.USD;
 
       return tonPrice!;
@@ -252,8 +248,8 @@ class Tonstakers extends EventTarget {
     const addressString = Tonstakers.jettonWalletAddress.toString();
     const cacheKey = `stakedBalance-${addressString}`;
 
-    if (this.cache.isFresh(cacheKey)) {
-      return this.cache.getData(cacheKey);
+    if (this.cache.needsUpdate(cacheKey)) {
+      return this.cache.get(cacheKey);
     }
 
     try {
@@ -266,7 +262,7 @@ class Tonstakers extends EventTarget {
       const formattedBalance = jettonWalletData.decoded.balance;
       console.log(`Current tsTON balance: ${formattedBalance}`);
 
-      this.cache.setData(cacheKey, formattedBalance);
+      this.cache.set(cacheKey, formattedBalance);
 
       return formattedBalance;
     } catch {
@@ -278,14 +274,14 @@ class Tonstakers extends EventTarget {
     if (!this.walletAddress) throw new Error("Wallet is not connected.");
 
     try {
-      if (!this.cache.isFresh("account")) {
-        this.cache.setData(
+      if (this.cache.needsUpdate("account")) {
+        this.cache.set(
           "account",
           this.client!.accounts.getAccount(this.walletAddress.toString()),
         );
       }
 
-      const account = await this.cache.getData("account");
+      const account = await this.cache.get("account");
 
       const balance =
         Number(account.balance) -

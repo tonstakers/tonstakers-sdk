@@ -16,21 +16,21 @@ export class NetworkCache {
     return Date.now();
   }
 
-  isFresh(key: string): boolean {
+  needsUpdate(key: string): boolean {
     const piece = this.store[key];
 
     if (!piece) {
-      return false;
+      return true;
     }
 
-    return this.time - piece.ts < this.ttl;
+    return this.time - piece.ts >= this.ttl;
   }
 
-  async getData(key: string) {
+  async get(key: string) {
     return this.store[key].data;
   }
 
-  setData(key: string, data: Promise<any>) {
+  set(key: string, data: Promise<any>) {
     this.store[key] = {
       ts: this.time,
       data,
