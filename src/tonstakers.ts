@@ -170,6 +170,20 @@ class Tonstakers extends EventTarget {
     }
   }
 
+  async getRoundTimestamps(): Promise<[number, number]> {
+    if (!this.stakingContractAddress)
+      throw new Error("Staking contract address not set.");
+
+    try {
+      const response = await this.fetchStakingPoolInfo();
+      const poolInfo = response.poolInfo;
+      return [poolInfo.cycle_start * 1000, poolInfo.cycle_end * 1000];
+    } catch {
+      console.error("Failed to get current APY");
+      throw new Error("Could not retrieve current APY.");
+    }
+  }
+
   async getTvl(): Promise<number> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
