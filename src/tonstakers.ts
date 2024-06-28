@@ -41,6 +41,7 @@ class Tonstakers extends EventTarget {
   private static jettonWalletAddress?: Address;
   private tonApiKey?: string;
   private cache: NetworkCache;
+  public ready: boolean;
 
   constructor({
     connector,
@@ -55,6 +56,7 @@ class Tonstakers extends EventTarget {
     this.cache = new NetworkCache(
       cacheFor === undefined ? TIMING.CACHE_TIMEOUT : cacheFor,
     );
+    this.ready = false;
 
     this.setupClient();
     this.initialize().catch((error) => {
@@ -107,6 +109,7 @@ class Tonstakers extends EventTarget {
         this.walletAddress,
       );
     }
+    this.ready = true;
     this.dispatchEvent(new Event("initialized"));
   }
 

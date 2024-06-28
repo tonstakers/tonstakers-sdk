@@ -17,6 +17,7 @@ export declare class Tonstakers extends EventTarget {
     private static jettonWalletAddress?;
     private tonApiKey?;
     private cache;
+    ready: boolean;
     constructor({ connector, referralCode, tonApiKey, cacheFor, }: TonstakersOptions);
     private setupClient;
     private initialize;
