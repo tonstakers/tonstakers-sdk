@@ -43,12 +43,12 @@ class n extends EventTarget {
   constructor({
     connector: t,
     referralCode: e = a.REFERRAL_CODE,
-    tonApiKey: o,
-    cacheFor: s
+    tonApiKey: s,
+    cacheFor: o
   }) {
-    super(), this.connector = t, this.referralCode = e, this.tonApiKey = o, this.cache = new A(
-      s === void 0 ? d.CACHE_TIMEOUT : s
-    ), this.setupClient(), this.initialize().catch((r) => {
+    super(), this.connector = t, this.referralCode = e, this.tonApiKey = s, this.cache = new A(
+      o === void 0 ? d.CACHE_TIMEOUT : o
+    ), this.ready = !1, this.setupClient(), this.initialize().catch((r) => {
       console.error("Initialization error:", r);
     });
   }
@@ -78,20 +78,20 @@ class n extends EventTarget {
   async setupWallet(t) {
     console.log("Setting up wallet for Tonstakers..."), t.account.chain, h.CHAIN_DEV, this.walletAddress = c.parse(t.account.address), n.jettonWalletAddress || (n.jettonWalletAddress = await this.getJettonWalletAddress(
       this.walletAddress
-    )), this.dispatchEvent(new Event("initialized"));
+    )), this.ready = !0, this.dispatchEvent(new Event("initialized"));
   }
   async fetchStakingPoolInfo() {
     if (this.cache.needsUpdate("poolInfo")) {
       const t = async () => {
         const e = await this.client.staking.getStakingPoolInfo(
           this.stakingContractAddress.toString()
-        ), o = await this.client.blockchain.execGetMethodForBlockchainAccount(
+        ), s = await this.client.blockchain.execGetMethodForBlockchainAccount(
           this.stakingContractAddress.toString(),
           "get_pool_full_data"
         );
         return {
           poolInfo: e.pool,
-          poolFullData: o.decoded
+          poolFullData: s.decoded
         };
       };
       this.cache.set("poolInfo", t());
@@ -153,18 +153,18 @@ class n extends EventTarget {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      const t = await this.fetchStakingPoolInfo(), e = t.poolFullData.total_balance, o = t.poolFullData.supply, s = e / o, r = t.poolFullData.projected_balance, g = t.poolFullData.projected_supply, u = r / g;
+      const t = await this.fetchStakingPoolInfo(), e = t.poolFullData.total_balance, s = t.poolFullData.supply, o = e / s, r = t.poolFullData.projected_balance, u = t.poolFullData.projected_supply, g = r / u;
       return {
         TONUSD: await this.getTonPrice(),
-        tsTONTON: s,
-        tsTONTONProjected: u
+        tsTONTON: o,
+        tsTONTONProjected: g
       };
     } catch {
       throw console.error("Failed to get rates"), new Error("Could not retrieve rates.");
     }
   }
   async getTonPrice() {
-    var t, e, o;
+    var t, e, s;
     try {
       return this.cache.needsUpdate("tonPrice") && this.cache.set(
         "tonPrice",
@@ -172,7 +172,7 @@ class n extends EventTarget {
           tokens: ["ton"],
           currencies: ["usd"]
         })
-      ), (o = (e = (t = (await this.cache.get("tonPrice")).rates) == null ? void 0 : t.TON) == null ? void 0 : e.prices) == null ? void 0 : o.USD;
+      ), (s = (e = (t = (await this.cache.get("tonPrice")).rates) == null ? void 0 : t.TON) == null ? void 0 : e.prices) == null ? void 0 : s.USD;
     } catch {
       return 0;
     }
@@ -189,8 +189,8 @@ class n extends EventTarget {
           "get_wallet_data"
         )
       );
-      const s = (await this.cache.get(e)).decoded.balance;
-      return console.log(`Current tsTON balance: ${s}`), s;
+      const o = (await this.cache.get(e)).decoded.balance;
+      return console.log(`Current tsTON balance: ${o}`), o;
     } catch {
       return 0;
     }
@@ -213,12 +213,12 @@ class n extends EventTarget {
       throw new Error("Tonstakers is not fully initialized.");
     try {
       await this.validateAmount(t);
-      const e = i(t + a.STAKE_FEE_RES), o = this.preparePayload("stake", t), s = await this.sendTransaction(
+      const e = i(t + a.STAKE_FEE_RES), s = this.preparePayload("stake", t), o = await this.sendTransaction(
         this.stakingContractAddress,
         e,
-        o
+        s
       );
-      return console.log(`Staked ${t} TON successfully.`), s;
+      return console.log(`Staked ${t} TON successfully.`), o;
     } catch (e) {
       throw console.error(
         "Staking failed:",
@@ -244,12 +244,12 @@ class n extends EventTarget {
       throw new Error("Jetton wallet address is not set.");
     try {
       await this.validateAmount(t);
-      const e = this.preparePayload("unstake", t), o = await this.sendTransaction(
+      const e = this.preparePayload("unstake", t), s = await this.sendTransaction(
         n.jettonWalletAddress,
         i(a.UNSTAKE_FEE_RES),
         e
       );
-      return console.log(`Initiated unstaking of ${t} tsTON.`), o;
+      return console.log(`Initiated unstaking of ${t} tsTON.`), s;
     } catch (e) {
       throw console.error(
         "Unstaking failed:",
@@ -262,12 +262,12 @@ class n extends EventTarget {
       throw new Error("Jetton wallet address is not set.");
     try {
       await this.validateAmount(t);
-      const e = this.preparePayload("unstake", t, !1, !0), o = await this.sendTransaction(
+      const e = this.preparePayload("unstake", t, !1, !0), s = await this.sendTransaction(
         n.jettonWalletAddress,
         i(a.UNSTAKE_FEE_RES),
         e
       );
-      return console.log(`Initiated instant unstaking of ${t} tsTON.`), o;
+      return console.log(`Initiated instant unstaking of ${t} tsTON.`), s;
     } catch (e) {
       throw console.error(
         "Instant unstaking failed:",
@@ -280,12 +280,12 @@ class n extends EventTarget {
       throw new Error("Jetton wallet address is not set.");
     try {
       await this.validateAmount(t);
-      const e = this.preparePayload("unstake", t, !0), o = await this.sendTransaction(
+      const e = this.preparePayload("unstake", t, !0), s = await this.sendTransaction(
         n.jettonWalletAddress,
         i(a.UNSTAKE_FEE_RES),
         e
       );
-      return console.log(`Initiated unstaking of ${t} tsTON at the best rate.`), o;
+      return console.log(`Initiated unstaking of ${t} tsTON at the best rate.`), s;
     } catch (e) {
       throw console.error(
         "Best rate unstaking failed:",
@@ -293,7 +293,7 @@ class n extends EventTarget {
       ), new Error("Best rate unstaking operation failed.");
     }
   }
-  preparePayload(t, e, o = !1, s = !1) {
+  preparePayload(t, e, s = !1, o = !1) {
     let r = l();
     switch (t) {
       case "stake":
@@ -301,7 +301,7 @@ class n extends EventTarget {
         break;
       case "unstake":
         r.storeUint(a.PAYLOAD_UNSTAKE, 32), r.storeUint(0, 64).storeCoins(i(e)).storeAddress(this.walletAddress).storeMaybeRef(
-          l().storeUint(Number(o), 1).storeUint(Number(s), 1).endCell()
+          l().storeUint(Number(s), 1).storeUint(Number(o), 1).endCell()
         );
         break;
     }
@@ -309,14 +309,14 @@ class n extends EventTarget {
   }
   async getJettonWalletAddress(t) {
     try {
-      const e = await this.fetchStakingPoolInfo(), o = c.parse(
+      const e = await this.fetchStakingPoolInfo(), s = c.parse(
         e.poolInfo.liquid_jetton_master
-      ), s = await this.client.blockchain.execGetMethodForBlockchainAccount(
-        o.toString(),
+      ), o = await this.client.blockchain.execGetMethodForBlockchainAccount(
+        s.toString(),
         "get_wallet_address",
         { args: [t.toString()] }
       );
-      return c.parse(s.decoded.jetton_wallet_address);
+      return c.parse(o.decoded.jetton_wallet_address);
     } catch (e) {
       throw console.error(
         "Failed to get jetton wallet address:",
@@ -328,14 +328,14 @@ class n extends EventTarget {
     if (typeof t != "number" || t <= 0)
       throw new Error("Invalid amount specified");
   }
-  sendTransaction(t, e, o) {
+  sendTransaction(t, e, s) {
     const r = {
       validUntil: +/* @__PURE__ */ new Date() + d.TIMEOUT,
       messages: [
         {
           address: t.toString(),
           amount: e.toString(),
-          payload: o
+          payload: s
         }
       ]
     };
