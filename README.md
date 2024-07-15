@@ -41,6 +41,12 @@ Initialize the SDK with your wallet connector (usually, a TonConnect instance) a
 ```javascript
 import { TonstakersSDK } from "tonstakers-sdk";
 
+// this is an example connector
+import { TonConnectUI } from "@tonconnect/ui";
+export const tonConnectUI = new TonConnectUI({
+  manifestUrl: MANIFEST_URL,
+});
+
 const tonstakers = new TonstakersSDK.Tonstakers({
   connector: yourWalletConnector, // Your wallet connector
   referralCode: 123456, // Optional referral code
