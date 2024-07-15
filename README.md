@@ -36,13 +36,13 @@ Replace `"path/to/tonstakers-sdk.min.js"` with the actual SDK path.
 
 ### In a Module Environment
 
-Initialize the SDK with your wallet connector and optional parameters:
+Initialize the SDK with your wallet connector (usually, a TonConnect instance) and optional parameters:
 
 ```javascript
 import { TonstakersSDK } from "tonstakers-sdk";
 
 const tonstakers = new TonstakersSDK.Tonstakers({
-  connector: yourWalletConnector, // Your wallet connector instance
+  connector: yourWalletConnector, // Your wallet connector
   referralCode: 123456, // Optional referral code
   tonApiKey: "YOUR_API_KEY", // Optional API key for tonapi
 });
