@@ -1,10 +1,10 @@
 {
   "name": "tonstakers-sdk",
-  "version": "0.0.4-development",
+  "version": "0.0.5-development",
   "description": "Tonstakers SDK",
   "license": "MIT",
   "repository": "git@github.com:tonstakers/tonstakers-sdk.git",
-  "main": "dist/tonstakers-sdk.js",
+  "main": "dist/tonstakers-sdk.min.js",
   "types": "dist/tonstakers-sdk.d.ts",
   "scripts": {
     "build": "tsc && vite build"
@@ -28,7 +28,8 @@
     "@types/node": "^20.11.24",
     "typescript": "^5.3.3",
     "vite": "^5.3.1",
-    "vite-plugin-dts": "^3.9.1"
+    "vite-plugin-dts": "^3.9.1",
+    "vite-plugin-node-polyfills": "^0.22.0"
   },
   "packageManager": "yarn@4.3.0"
 }
