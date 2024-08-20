@@ -1,4 +1,5 @@
 import { ApyHistory } from 'tonapi-sdk-js';
+import { PoolInfo } from 'tonapi-sdk-js';
 
 declare interface IWalletConnector {
     wallet: {
@@ -18,12 +19,16 @@ export declare class Tonstakers extends EventTarget {
     private tonApiKey?;
     private cache;
     ready: boolean;
+    isTestnet: boolean;
     constructor({ connector, referralCode, tonApiKey, cacheFor, }: TonstakersOptions);
     private setupClient;
     private initialize;
     private deinitialize;
     private setupWallet;
-    fetchStakingPoolInfo(): Promise<any>;
+    fetchStakingPoolInfo(): Promise<{
+        poolInfo: PoolInfo;
+        poolFullData: any;
+    }>;
     getCurrentApy(): Promise<number>;
     getHistoricalApy(): Promise<ApyHistory[]>;
     getRoundTimestamps(): Promise<[number, number]>;
@@ -33,6 +38,7 @@ export declare class Tonstakers extends EventTarget {
     private getTonPrice;
     getStakedBalance(): Promise<number>;
     getAvailableBalance(): Promise<number>;
+    getInstantLiquidity(): Promise<number>;
     stake(amount: number): Promise<void>;
     stakeMax(): Promise<void>;
     unstake(amount: number): Promise<void>;
