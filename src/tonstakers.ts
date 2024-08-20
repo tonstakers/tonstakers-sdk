@@ -126,9 +126,6 @@ class Tonstakers extends EventTarget {
   }
 
   async fetchStakingPoolInfo() {
-    // several methods may fetch this at the same time, so the Promise is put to the cache instantly instead of waiting for the response
-    // if we wait for the response instead, the cache may not be filled at the moment when the next caller tries to get it, and the request will be repeated
-
     const getPoolInfo = async () => {
       const poolInfo = await this.client.staking.getStakingPoolInfo(
         this.stakingContractAddress!.toString(),
