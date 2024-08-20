@@ -117,27 +117,24 @@ class Tonstakers extends EventTarget {
   async fetchStakingPoolInfo() {
     // several methods may fetch this at the same time, so the Promise is put to the cache instantly instead of waiting for the response
     // if we wait for the response instead, the cache may not be filled at the moment when the next caller tries to get it, and the request will be repeated
-    if (this.cache.needsUpdate("poolInfo")) {
-      const getPoolInfo = async () => {
-        const poolInfo = await this.client.staking.getStakingPoolInfo(
+
+    const getPoolInfo = async () => {
+      const poolInfo = await this.client.staking.getStakingPoolInfo(
+        this.stakingContractAddress!.toString(),
+      );
+      const poolFullData =
+        await this.client.blockchain.execGetMethodForBlockchainAccount(
           this.stakingContractAddress!.toString(),
+          "get_pool_full_data",
         );
-        const poolFullData =
-          await this.client.blockchain.execGetMethodForBlockchainAccount(
-            this.stakingContractAddress!.toString(),
-            "get_pool_full_data",
-          );
 
-        return {
-          poolInfo: poolInfo.pool,
-          poolFullData: poolFullData.decoded,
-        };
+      return {
+        poolInfo: poolInfo.pool,
+        poolFullData: poolFullData.decoded,
       };
+    };
 
-      this.cache.set("poolInfo", getPoolInfo());
-    }
-
-    return this.cache.get("poolInfo");
+    return this.cache.get("poolInfo", getPoolInfo);
   }
 
   async getCurrentApy(): Promise<number> {
@@ -153,20 +150,14 @@ class Tonstakers extends EventTarget {
   }
 
   async getHistoricalApy(): Promise<ApyHistory[]> {
-    if (!this.stakingContractAddress)
-      throw new Error("Staking contract address not set.");
+    const stakingAddress = this.stakingContractAddress;
+
+    if (!stakingAddress) throw new Error("Staking contract address not set.");
+
     try {
-      if (this.cache.needsUpdate("stakingHistory")) {
-        this.cache.set(
-          "stakingHistory",
-          this.client!.staking.getStakingPoolHistory(
-            this.stakingContractAddress.toString(),
-          ),
-        );
-      }
-
-      const stakingHistory = await this.cache.get("stakingHistory");
-
+      const stakingHistory = await this.cache.get("stakingHistory", () =>
+        this.client!.staking.getStakingPoolHistory(stakingAddress.toString()),
+      );
       return stakingHistory.apy;
     } catch {
       console.error("Failed to get historical APY");
@@ -240,20 +231,16 @@ class Tonstakers extends EventTarget {
 
   private async getTonPrice(): Promise<number> {
     try {
-      if (this.cache.needsUpdate("tonPrice")) {
-        this.cache.set(
-          "tonPrice",
-          this.client!.rates.getRates({
-            tokens: ["ton"],
-            currencies: ["usd"],
-          }),
-        );
-      }
+      const response = await this.cache.get("tonPrice", () =>
+        this.client!.rates.getRates({
+          tokens: ["ton"],
+          currencies: ["usd"],
+        }),
+      );
 
-      const response = await this.cache.get("tonPrice");
       const tonPrice = response.rates?.TON?.prices?.USD;
 
-      return tonPrice!;
+      return tonPrice || 0;
     } catch {
       return 0;
     }
@@ -264,20 +251,16 @@ class Tonstakers extends EventTarget {
       throw new Error("Jetton wallet address is not set.");
 
     const addressString = Tonstakers.jettonWalletAddress.toString();
-    const cacheKey = `stakedBalance-${addressString}`;
 
     try {
-      if (this.cache.needsUpdate(cacheKey)) {
-        this.cache.set(
-          cacheKey,
+      const jettonWalletData = await this.cache.get(
+        `stakedBalance-${addressString}`,
+        () =>
           this.client!.blockchain.execGetMethodForBlockchainAccount(
             addressString,
             "get_wallet_data",
           ),
-        );
-      }
-
-      const jettonWalletData = await this.cache.get(cacheKey);
+      );
 
       const formattedBalance = jettonWalletData.decoded.balance;
       log(`Current tsTON balance: ${formattedBalance}`);
@@ -289,17 +272,13 @@ class Tonstakers extends EventTarget {
   }
 
   async getAvailableBalance(): Promise<number> {
-    if (!this.walletAddress) throw new Error("Wallet is not connected.");
+    const walletAddress = this.walletAddress;
+    if (!walletAddress) throw new Error("Wallet is not connected.");
 
     try {
-      if (this.cache.needsUpdate("account")) {
-        this.cache.set(
-          "account",
-          this.client!.accounts.getAccount(this.walletAddress.toString()),
-        );
-      }
-
-      const account = await this.cache.get("account");
+      const account = await this.cache.get("account", () =>
+        this.client!.accounts.getAccount(walletAddress.toString()),
+      );
 
       const balance =
         Number(account.balance) -

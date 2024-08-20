@@ -1,14 +1,14 @@
-type StorePiece = {
+type DataPiece = {
   ts: number;
   data: Promise<any>;
 };
 
 export class NetworkCache {
-  private store: Record<string, StorePiece>;
+  private data: Record<string, DataPiece>;
   ttl: number;
 
   constructor(ttl: number) {
-    this.store = {};
+    this.data = {};
     this.ttl = ttl;
   }
 
@@ -16,8 +16,20 @@ export class NetworkCache {
     return Date.now();
   }
 
-  needsUpdate(key: string): boolean {
-    const piece = this.store[key];
+  get<T extends any>(key: string, getNewValue: () => Promise<T>): Promise<T> {
+    if (this.needsUpdate(key)) {
+      this.save<T>(key, getNewValue());
+    }
+
+    return this.retrieve<T>(key);
+  }
+
+  needsUpdate(key: string, force?: boolean): boolean {
+    if (force) {
+      return force;
+    }
+
+    const piece = this.data[key];
 
     if (!piece) {
       return true;
@@ -26,14 +38,36 @@ export class NetworkCache {
     return this.time - piece.ts >= this.ttl;
   }
 
-  async get(key: string) {
-    return this.store[key].data;
+  async retrieve<T extends any>(key: string): Promise<T> {
+    return this.data[key].data;
   }
 
-  set(key: string, data: Promise<any>) {
-    this.store[key] = {
+  save<T extends any>(key: string, data: Promise<T>) {
+    this.data[key] = {
       ts: this.time,
       data,
     };
+  }
+
+  pop<T extends any>(key: string): Promise<T> | undefined {
+    const data = this.data[key];
+    delete this.data[key];
+    return data.data;
+  }
+
+  get size() {
+    return Object.keys(this.data).length;
+  }
+
+  cleanup() {
+    Object.keys(this.data).forEach((key) => {
+      if (this.needsUpdate(key)) {
+        this.pop(key);
+      }
+    });
+  }
+
+  clear() {
+    this.data = {};
   }
 }
