@@ -43,6 +43,7 @@ class Tonstakers extends EventTarget {
   private tonApiKey?: string;
   private cache: NetworkCache;
   public ready: boolean;
+  public isTestnet: boolean;
 
   constructor({
     connector,
@@ -58,6 +59,7 @@ class Tonstakers extends EventTarget {
       cacheFor === undefined ? TIMING.CACHE_TIMEOUT : cacheFor,
     );
     this.ready = false;
+    this.isTestnet = false;
 
     this.setupClient();
     this.initialize().catch((error) => {
@@ -66,6 +68,7 @@ class Tonstakers extends EventTarget {
   }
 
   private async setupClient(): Promise<void> {
+    log("Setting up Tonstakers SDK, isTestnet:", this.isTestnet);
     const baseApiParams = this.tonApiKey
       ? {
           headers: {
@@ -75,7 +78,7 @@ class Tonstakers extends EventTarget {
         }
       : {};
     const httpClient = new HttpClient({
-      baseUrl: BLOCKCHAIN.API_URL,
+      baseUrl: this.isTestnet ? BLOCKCHAIN.API_URL_TESTNET : BLOCKCHAIN.API_URL,
       baseApiParams,
     });
     this.client = new Api(httpClient);
@@ -103,13 +106,21 @@ class Tonstakers extends EventTarget {
 
   private async setupWallet(wallet: any): Promise<void> {
     log("Setting up wallet for Tonstakers...");
-    const isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
+
+    this.cache.clear();
+
+    this.isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
+
     this.walletAddress = Address.parse(wallet.account.address);
+
     if (!Tonstakers.jettonWalletAddress) {
       Tonstakers.jettonWalletAddress = await this.getJettonWalletAddress(
         this.walletAddress,
       );
     }
+
+    await this.setupClient();
+
     this.ready = true;
     this.dispatchEvent(new Event("initialized"));
   }
