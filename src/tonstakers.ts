@@ -298,6 +298,18 @@ class Tonstakers extends EventTarget {
     }
   }
 
+  async getInstantLiquidity(): Promise<number> {
+    const account = await this.cache.get("contract-account", () =>
+      this.client!.accounts.getAccount(
+        this.isTestnet
+          ? CONTRACT.STAKING_CONTRACT_ADDRESS_TESTNET
+          : CONTRACT.STAKING_CONTRACT_ADDRESS,
+      ),
+    );
+
+    return account.balance;
+  }
+
   async stake(amount: number): Promise<void> {
     if (!this.walletAddress || !Tonstakers.jettonWalletAddress)
       throw new Error("Tonstakers is not fully initialized.");
