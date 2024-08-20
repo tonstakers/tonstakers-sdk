@@ -2,6 +2,7 @@ import { beginCell, Address, toNano } from "@ton/core";
 import { HttpClient, Api, ApyHistory } from "tonapi-sdk-js";
 import { CONTRACT, BLOCKCHAIN, TIMING } from "./constants";
 import { NetworkCache } from "./cache";
+import { log } from "./utils";
 
 interface TransactionMessage {
   address: string;
@@ -94,14 +95,14 @@ class Tonstakers extends EventTarget {
   }
 
   private deinitialize(): void {
-    console.log("Deinitializing Tonstakers...");
+    log("Deinitializing Tonstakers...");
     this.walletAddress = undefined;
     Tonstakers.jettonWalletAddress = undefined;
     this.dispatchEvent(new Event("deinitialized"));
   }
 
   private async setupWallet(wallet: any): Promise<void> {
-    console.log("Setting up wallet for Tonstakers...");
+    log("Setting up wallet for Tonstakers...");
     const isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
     this.walletAddress = Address.parse(wallet.account.address);
     if (!Tonstakers.jettonWalletAddress) {
@@ -279,7 +280,7 @@ class Tonstakers extends EventTarget {
       const jettonWalletData = await this.cache.get(cacheKey);
 
       const formattedBalance = jettonWalletData.decoded.balance;
-      console.log(`Current tsTON balance: ${formattedBalance}`);
+      log(`Current tsTON balance: ${formattedBalance}`);
 
       return formattedBalance;
     } catch {
@@ -322,7 +323,7 @@ class Tonstakers extends EventTarget {
         totalAmount,
         payload,
       );
-      console.log(`Staked ${amount} TON successfully.`);
+      log(`Staked ${amount} TON successfully.`);
       return result;
     } catch (error) {
       console.error(
@@ -337,9 +338,7 @@ class Tonstakers extends EventTarget {
     try {
       const availableBalance = await this.getAvailableBalance();
       const result = await this.stake(availableBalance);
-      console.log(
-        `Staked maximum amount of ${availableBalance} TON successfully.`,
-      );
+      log(`Staked maximum amount of ${availableBalance} TON successfully.`);
       return result;
     } catch (error) {
       console.error(
@@ -361,7 +360,7 @@ class Tonstakers extends EventTarget {
         toNano(CONTRACT.UNSTAKE_FEE_RES),
         payload,
       ); // Includes transaction fee
-      console.log(`Initiated unstaking of ${amount} tsTON.`);
+      log(`Initiated unstaking of ${amount} tsTON.`);
       return result;
     } catch (error) {
       console.error(
@@ -383,7 +382,7 @@ class Tonstakers extends EventTarget {
         toNano(CONTRACT.UNSTAKE_FEE_RES),
         payload,
       ); // Includes transaction fee
-      console.log(`Initiated instant unstaking of ${amount} tsTON.`);
+      log(`Initiated instant unstaking of ${amount} tsTON.`);
       return result;
     } catch (error) {
       console.error(
@@ -405,7 +404,7 @@ class Tonstakers extends EventTarget {
         toNano(CONTRACT.UNSTAKE_FEE_RES),
         payload,
       ); // Includes transaction fee
-      console.log(`Initiated unstaking of ${amount} tsTON at the best rate.`);
+      log(`Initiated unstaking of ${amount} tsTON at the best rate.`);
       return result;
     } catch (error) {
       console.error(
