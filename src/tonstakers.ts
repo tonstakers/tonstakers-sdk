@@ -28,7 +28,7 @@ interface IWalletConnector {
 
 interface TonstakersOptions {
   connector: IWalletConnector;
-  referralCode?: number;
+  partnerCode?: number;
   tonApiKey?: string;
   cacheFor?: number;
 }
@@ -38,7 +38,7 @@ class Tonstakers extends EventTarget {
   private client!: Api<any>;
   private walletAddress?: Address;
   private stakingContractAddress?: Address;
-  private referralCode: number;
+  private partnerCode: number;
   private static jettonWalletAddress?: Address;
   private tonApiKey?: string;
   private cache: NetworkCache;
@@ -47,13 +47,13 @@ class Tonstakers extends EventTarget {
 
   constructor({
     connector,
-    referralCode = CONTRACT.REFERRAL_CODE,
+    partnerCode = CONTRACT.PARTNER_CODE,
     tonApiKey,
     cacheFor,
   }: TonstakersOptions) {
     super();
     this.connector = connector;
-    this.referralCode = referralCode;
+    this.partnerCode = partnerCode;
     this.tonApiKey = tonApiKey;
     this.cache = new NetworkCache(
       cacheFor === undefined ? TIMING.CACHE_TIMEOUT : cacheFor,
@@ -425,7 +425,7 @@ class Tonstakers extends EventTarget {
     switch (operation) {
       case "stake":
         cell.storeUint(CONTRACT.PAYLOAD_STAKE, 32);
-        cell.storeUint(1, 64).storeUint(this.referralCode, 64);
+        cell.storeUint(1, 64).storeUint(this.partnerCode, 64);
         break;
       case "unstake":
         cell.storeUint(CONTRACT.PAYLOAD_UNSTAKE, 32);

@@ -49,7 +49,7 @@ export const tonConnectUI = new TonConnectUI({
 
 const tonstakers = new Tonstakers({
   connector: yourWalletConnector, // Your wallet connector
-  referralCode: 123456, // Optional referral code
+  partnerCode: 123456, // Optional partner code
   tonApiKey: "YOUR_API_KEY", // Optional API key for tonapi
 });
 ```
@@ -65,7 +65,7 @@ Direct HTML file initialization:
 
   const tonstakers = new Tonstakers({
     connector: yourWalletConnector,
-    referralCode: 123456,
+    partnerCode: 123456,
     tonApiKey: "YOUR_API_KEY",
   });
 </script>

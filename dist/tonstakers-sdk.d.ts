@@ -14,13 +14,13 @@ export declare class Tonstakers extends EventTarget {
     private client;
     private walletAddress?;
     private stakingContractAddress?;
-    private referralCode;
+    private partnerCode;
     private static jettonWalletAddress?;
     private tonApiKey?;
     private cache;
     ready: boolean;
     isTestnet: boolean;
-    constructor({ connector, referralCode, tonApiKey, cacheFor, }: TonstakersOptions);
+    constructor({ connector, partnerCode, tonApiKey, cacheFor, }: TonstakersOptions);
     private setupClient;
     private initialize;
     private deinitialize;
@@ -52,7 +52,7 @@ export declare class Tonstakers extends EventTarget {
 
 declare interface TonstakersOptions {
     connector: IWalletConnector;
-    referralCode?: number;
+    partnerCode?: number;
     tonApiKey?: string;
     cacheFor?: number;
 }
