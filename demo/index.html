@@ -21,6 +21,7 @@
         <button id="unstakeInstant">Unstake 1 tsTON Instant</button>
         <button id="unstakeBestRate">Unstake 1 tsTON Best Rate</button>
         <button id="refreshBalances">Refresh Balances</button>
+        <button id="getWithdrawals">Get Withdrawal List</button>
         <button id="getPoolData">Get Pool Data</button>
         <br /><br />
         <div id="walletAddressDisplay">
@@ -40,6 +41,7 @@
         <div id="TONtsTONRateDisplay">
             1 tsTON = <span id="tsTONTON">0</span> TON
         </div>
+        <div id="activeWithdrawals"></div>
         <br /><br />
         <code id="poolDataDisplay"></code>
 
@@ -178,6 +180,45 @@
                     const poolData = await tonstakers.fetchStakingPoolInfo();
                     document.getElementById("poolDataDisplay").innerText =
                         JSON.stringify(poolData, null, 2);
+                });
+
+
+            document
+                .getElementById("getWithdrawals")
+                .addEventListener("click", async () => {
+
+                    const activeWithdrawalsDiv = document.getElementById("activeWithdrawals");
+                    activeWithdrawalsDiv.innerHTML = "";
+
+                    const activeWithdrawals = await tonstakers.activeWithdrawalNFTs();
+                    if(!activeWithdrawals.length) {
+                        activeWithdrawalsDiv.innerText = 'you have no active withdrawals'
+                        return
+                    }
+                    const formatTime = (seconds) => {
+                        const hours = Math.floor(seconds / 3600);
+                        const minutes = Math.floor((seconds % 3600) / 60);
+                        return `${hours} hours, ${minutes} minutes`;
+                    }
+
+                    activeWithdrawals.forEach(withdrawal => {
+                        const estimatedTime = formatTime(withdrawal.estimatedPayoutDateTime - Math.floor(Date.now() / 1000));
+                        const roundEnds = formatTime(withdrawal.roundEndTime - Math.floor(Date.now() / 1000));
+                        const estimatedTimeInQueue = formatTime(withdrawal.estimatedPayoutDateTime - withdrawal.roundEndTime);
+                        const withdrawalDiv = document.createElement("div");
+                        withdrawalDiv.classList.add("withdrawal-item");
+                        const withdrawalInfo = `
+                            <strong>Withdrawal ${withdrawal.amount} TON</strong><br>
+                            <span>Estimated Payout Time: <em>${estimatedTime}</em></span><br>
+                            <span>Estimated Time in Queue: <em>${estimatedTimeInQueue}</em></span><br>
+                            <span>Round Ends: <em>${roundEnds}</em></span><br>
+                            <span>Transfer TX: <em>${withdrawal.address}</em></span><br>
+                            <span>Collection: <em>${withdrawal.collection?.address}</em></span><br>
+                            <hr>
+                        `;
+                        withdrawalDiv.innerHTML = withdrawalInfo;
+                        activeWithdrawalsDiv.appendChild(withdrawalDiv);
+                    })
                 });
 
             async function getWalletBalance() {

@@ -1,4 +1,5 @@
 import { ApyHistory } from 'tonapi-sdk-js';
+import { NftItem } from 'tonapi-sdk-js';
 import { PoolInfo } from 'tonapi-sdk-js';
 
 declare interface IWalletConnector {
@@ -9,10 +10,17 @@ declare interface IWalletConnector {
     onStatusChange: (callback: (wallet: any) => void) => void;
 }
 
+declare interface NftItemWithEstimates extends NftItem {
+    estimatedPayoutDateTime: number;
+    roundEndTime: number;
+    amount: number;
+}
+
 export declare class Tonstakers extends EventTarget {
     private connector;
     private client;
     private walletAddress?;
+    private hexWalletAddress?;
     private stakingContractAddress?;
     private partnerCode;
     private static jettonWalletAddress?;
@@ -44,6 +52,8 @@ export declare class Tonstakers extends EventTarget {
     unstake(amount: number): Promise<void>;
     unstakeInstant(amount: number): Promise<void>;
     unstakeBestRate(amount: number): Promise<void>;
+    activeWithdrawalNFTs(): Promise<NftItemWithEstimates[]>;
+    private getFilteredByUserNFTs;
     private preparePayload;
     private getJettonWalletAddress;
     private validateAmount;
