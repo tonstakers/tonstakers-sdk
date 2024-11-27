@@ -447,7 +447,7 @@ class Tonstakers extends EventTarget {
       for (const item of payoutNftCollection.nft_items) {
         if (item.owner?.address === this.hexWalletAddress) {
           const positionBasedTime = itemsBeforeCount * TIMING.ESTIMATED_TIME_BW_TX_S;
-          const estimatedPayoutTimeInSeconds = endDateInSeconds + positionBasedTime;
+          const estimatedPayoutTimeInSeconds = endDateInSeconds + positionBasedTime + TIMING.ESTIMATED_TIME_AFTER_ROUND_S;
 
           filteredItems.push({
             ...item,

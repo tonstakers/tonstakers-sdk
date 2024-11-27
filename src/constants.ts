@@ -4,6 +4,7 @@ export const TIMING = {
   TIMEOUT: 600000,
   CACHE_TIMEOUT: 30000,
   ESTIMATED_TIME_BW_TX_S: 3,
+  ESTIMATED_TIME_AFTER_ROUND_S: 10 * 60,
 };
 
 // Blockchain-related constants
