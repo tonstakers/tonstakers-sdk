@@ -13,7 +13,7 @@ declare interface IWalletConnector {
 declare interface NftItemWithEstimates extends NftItem {
     estimatedPayoutDateTime: number;
     roundEndTime: number;
-    amount: number;
+    tsTONAmount: number;
 }
 
 export declare class Tonstakers extends EventTarget {

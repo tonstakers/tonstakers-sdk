@@ -36,7 +36,7 @@ interface TonstakersOptions {
 interface NftItemWithEstimates extends NftItem {
   estimatedPayoutDateTime: number;
   roundEndTime: number;
-  amount: number;
+  tsTONAmount: number;
 }
 
 class Tonstakers extends EventTarget {
@@ -453,7 +453,7 @@ class Tonstakers extends EventTarget {
             ...item,
             estimatedPayoutDateTime: estimatedPayoutTimeInSeconds,
             roundEndTime: endDateInSeconds,
-            amount: item.metadata.name?.match(/[\d.]+/)[0] || 0
+            tsTONAmount: Number(item.metadata.name?.match(/[\d.]+/)[0]) || 0
           });
         }
         itemsBeforeCount++;
