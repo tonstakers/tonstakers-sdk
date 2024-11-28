@@ -425,7 +425,7 @@ class Tonstakers extends EventTarget {
       const poolData = await this.fetchStakingPoolInfo();
       const withdrawalPayout = poolData.poolFullData.withdrawal_payout;
       return await this.cache.get("withdrawals-" + withdrawalPayout, () =>
-        this.getFilteredByUserNFTs(withdrawalPayout)
+        this.getFilteredByAddressNFTs(withdrawalPayout)
       );
     } catch (error) {
       console.error(
@@ -436,7 +436,7 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  private async getFilteredByUserNFTs(payoutAddress: string): Promise<NftItemWithEstimates[]> {
+  private async getFilteredByAddressNFTs(payoutAddress: string): Promise<NftItemWithEstimates[]> {
     try {
       const payoutNftCollection = await this.client.nft.getItemsFromCollection(payoutAddress);
       const [, endDate] = await this.getRoundTimestamps();

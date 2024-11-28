@@ -52,7 +52,7 @@ export declare class Tonstakers extends EventTarget {
     unstakeInstant(amount: number): Promise<void>;
     unstakeBestRate(amount: number): Promise<void>;
     getActiveWithdrawalNFTs(): Promise<NftItemWithEstimates[]>;
-    private getFilteredByUserNFTs;
+    private getFilteredByAddressNFTs;
     private preparePayload;
     private getJettonWalletAddress;
     private validateAmount;
