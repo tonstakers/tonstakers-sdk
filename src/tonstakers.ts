@@ -426,7 +426,9 @@ class Tonstakers extends EventTarget {
     try {
       const poolData = await this.fetchStakingPoolInfo();
       const withdrawalPayout = poolData.poolFullData.withdrawal_payout;
-      return await this.getFilteredByUserNFTs(withdrawalPayout)
+      return await this.cache.get("withdrawals", () =>
+        this.getFilteredByUserNFTs(withdrawalPayout)
+      );
     } catch (error) {
       console.error(
         "Failed to get active withdrawals:",
