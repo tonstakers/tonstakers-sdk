@@ -3,6 +3,8 @@ export const TIMING = {
   DEFAULT_INTERVAL: 5000,
   TIMEOUT: 600000,
   CACHE_TIMEOUT: 30000,
+  ESTIMATED_TIME_BW_TX_S: 3,
+  ESTIMATED_TIME_AFTER_ROUND_S: 10 * 60,
 };
 
 // Blockchain-related constants
@@ -23,3 +25,4 @@ export const CONTRACT = {
   UNSTAKE_FEE_RES: 1.05,
   RECOMMENDED_FEE_RESERVE: 1.1,
 };
+

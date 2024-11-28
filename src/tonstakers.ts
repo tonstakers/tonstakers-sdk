@@ -1,6 +1,6 @@
-import { beginCell, Address, toNano } from "@ton/core";
-import { HttpClient, Api, ApyHistory } from "tonapi-sdk-js";
-import { CONTRACT, BLOCKCHAIN, TIMING } from "./constants";
+import { Address, beginCell, toNano } from "@ton/core";
+import { Api, ApyHistory, HttpClient, NftItem } from "tonapi-sdk-js";
+import { BLOCKCHAIN, CONTRACT, TIMING } from "./constants";
 import { NetworkCache } from "./cache";
 import { log } from "./utils";
 
@@ -31,6 +31,12 @@ interface TonstakersOptions {
   partnerCode?: number;
   tonApiKey?: string;
   cacheFor?: number;
+}
+
+interface NftItemWithEstimates extends NftItem {
+  estimatedPayoutDateTime: number;
+  roundEndTime: number;
+  tsTONAmount: number;
 }
 
 class Tonstakers extends EventTarget {
@@ -411,6 +417,52 @@ class Tonstakers extends EventTarget {
         error instanceof Error ? error.message : error,
       );
       throw new Error("Best rate unstaking operation failed.");
+    }
+  }
+
+  async getActiveWithdrawalNFTs(): Promise<NftItemWithEstimates[]> {
+    try {
+      const poolData = await this.fetchStakingPoolInfo();
+      const withdrawalPayout = poolData.poolFullData.withdrawal_payout;
+      return await this.cache.get("withdrawals-" + withdrawalPayout, () =>
+        this.getFilteredByAddressNFTs(withdrawalPayout)
+      );
+    } catch (error) {
+      console.error(
+        "Failed to get active withdrawals:",
+        error instanceof Error ? error.message : error,
+      );
+      throw new Error("Failed to get active withdrawals.");
+    }
+  }
+
+  private async getFilteredByAddressNFTs(payoutAddress: string): Promise<NftItemWithEstimates[]> {
+    try {
+      const payoutNftCollection = await this.client.nft.getItemsFromCollection(payoutAddress);
+      const [, endDate] = await this.getRoundTimestamps();
+      const endDateInSeconds = Math.floor(endDate / 1000);
+      const filteredItems: NftItemWithEstimates[] = [];
+      let itemsBeforeCount = 0;
+
+      for (const item of payoutNftCollection.nft_items) {
+        if (item.owner?.address === this.walletAddress?.toRawString()) {
+          const positionBasedTime = itemsBeforeCount * TIMING.ESTIMATED_TIME_BW_TX_S;
+          const estimatedPayoutTimeInSeconds = endDateInSeconds + positionBasedTime + TIMING.ESTIMATED_TIME_AFTER_ROUND_S;
+
+          filteredItems.push({
+            ...item,
+            estimatedPayoutDateTime: estimatedPayoutTimeInSeconds,
+            roundEndTime: endDateInSeconds,
+            tsTONAmount: Number(item.metadata.name?.match(/[\d.]+/)[0]) || 0
+          });
+        }
+        itemsBeforeCount++;
+      }
+
+      return filteredItems;
+    } catch (error) {
+      console.error("Failed to get withdrawal history:", error);
+      return [];
     }
   }
 
