@@ -43,7 +43,6 @@ class Tonstakers extends EventTarget {
   private connector: IWalletConnector;
   private client!: Api<any>;
   private walletAddress?: Address;
-  private hexWalletAddress?: string;
   private stakingContractAddress?: Address;
   private partnerCode: number;
   private static jettonWalletAddress?: Address;
@@ -119,7 +118,6 @@ class Tonstakers extends EventTarget {
     this.isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
 
     this.walletAddress = Address.parse(wallet.account.address);
-    this.hexWalletAddress = wallet.account.address
 
     if (!Tonstakers.jettonWalletAddress) {
       Tonstakers.jettonWalletAddress = await this.getJettonWalletAddress(
@@ -422,11 +420,11 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async activeWithdrawalNFTs(): Promise<NftItemWithEstimates[]> {
+  async getActiveWithdrawalNFTs(): Promise<NftItemWithEstimates[]> {
     try {
       const poolData = await this.fetchStakingPoolInfo();
       const withdrawalPayout = poolData.poolFullData.withdrawal_payout;
-      return await this.cache.get("withdrawals", () =>
+      return await this.cache.get("withdrawals-" + withdrawalPayout, () =>
         this.getFilteredByUserNFTs(withdrawalPayout)
       );
     } catch (error) {
@@ -447,7 +445,7 @@ class Tonstakers extends EventTarget {
       let itemsBeforeCount = 0;
 
       for (const item of payoutNftCollection.nft_items) {
-        if (item.owner?.address === this.hexWalletAddress) {
+        if (item.owner?.address === this.walletAddress?.toRawString()) {
           const positionBasedTime = itemsBeforeCount * TIMING.ESTIMATED_TIME_BW_TX_S;
           const estimatedPayoutTimeInSeconds = endDateInSeconds + positionBasedTime + TIMING.ESTIMATED_TIME_AFTER_ROUND_S;
 

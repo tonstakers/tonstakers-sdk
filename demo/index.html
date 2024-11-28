@@ -190,7 +190,7 @@
                     const activeWithdrawalsDiv = document.getElementById("activeWithdrawals");
                     activeWithdrawalsDiv.innerHTML = "";
 
-                    const activeWithdrawals = await tonstakers.activeWithdrawalNFTs();
+                    const activeWithdrawals = await tonstakers.getActiveWithdrawalNFTs();
                     if(!activeWithdrawals.length) {
                         activeWithdrawalsDiv.innerText = 'you have no active withdrawals'
                         return
