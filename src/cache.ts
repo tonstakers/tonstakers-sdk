@@ -1,14 +1,12 @@
 type DataPiece = {
   ts: number;
-  data: Promise<any>;
+  data: string;
 };
 
 export class NetworkCache {
-  private data: Record<string, DataPiece>;
   ttl: number;
 
   constructor(ttl: number) {
-    this.data = {};
     this.ttl = ttl;
   }
 
@@ -16,9 +14,9 @@ export class NetworkCache {
     return Date.now();
   }
 
-  get<T extends any>(key: string, getNewValue: () => Promise<T>): Promise<T> {
+  async get<T extends any>(key: string, getNewValue: () => Promise<T>): Promise<T> {
     if (this.needsUpdate(key)) {
-      this.save<T>(key, getNewValue());
+      return this.save<T>(key, getNewValue());
     }
 
     return this.retrieve<T>(key);
@@ -29,7 +27,7 @@ export class NetworkCache {
       return force;
     }
 
-    const piece = this.data[key];
+    const piece = this.getDataPiece(key);
 
     if (!piece) {
       return true;
@@ -39,35 +37,54 @@ export class NetworkCache {
   }
 
   async retrieve<T extends any>(key: string): Promise<T> {
-    return this.data[key].data;
+    const piece = this.getDataPiece(key);
+    if (!piece) {
+      throw new Error('Data not found');
+    }
+    return JSON.parse(piece.data);
   }
 
-  save<T extends any>(key: string, data: Promise<T>) {
-    this.data[key] = {
-      ts: this.time,
-      data,
-    };
+  async save<T extends any>(key: string, data: Promise<T>): Promise<T> {
+    try {
+      const resolvedData = await data;
+      const serializedData = JSON.stringify(resolvedData);
+      const dataPiece: DataPiece = {
+        ts: this.time,
+        data: serializedData,
+      };
+      sessionStorage.setItem(key, JSON.stringify(dataPiece));
+      return resolvedData;
+    } catch (error) {
+      console.error('Failed to save data:', error);
+      throw error;
+    }
   }
 
-  pop<T extends any>(key: string): Promise<T> | undefined {
-    const data = this.data[key];
-    delete this.data[key];
-    return data.data;
+  pop<T extends any>(key: string): T | undefined {
+    const piece = this.getDataPiece(key);
+    sessionStorage.removeItem(key);
+    return piece ? JSON.parse(piece.data) : undefined;
   }
 
   get size() {
-    return Object.keys(this.data).length;
+    return sessionStorage.length;
   }
 
   cleanup() {
-    Object.keys(this.data).forEach((key) => {
-      if (this.needsUpdate(key)) {
+    Object.keys(sessionStorage).forEach((key) => {
+      const piece = this.getDataPiece(key);
+      if (piece && this.needsUpdate(key)) {
         this.pop(key);
       }
     });
   }
 
   clear() {
-    this.data = {};
+    sessionStorage.clear();
+  }
+
+  private getDataPiece(key: string): DataPiece | null {
+    const item = sessionStorage.getItem(key);
+    return item ? JSON.parse(item) : null;
   }
 }
