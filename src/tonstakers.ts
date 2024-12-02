@@ -113,8 +113,6 @@ class Tonstakers extends EventTarget {
   private async setupWallet(wallet: any): Promise<void> {
     log("Setting up wallet for Tonstakers...");
 
-    this.cache.clear();
-
     this.isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
 
     this.walletAddress = Address.parse(wallet.account.address);
