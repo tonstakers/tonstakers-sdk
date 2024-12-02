@@ -5,9 +5,11 @@ type DataPiece = {
 
 export class NetworkCache {
   ttl: number;
+  prefix: string;
 
-  constructor(ttl: number) {
+  constructor(ttl: number, prefix: string = 'network-cache-') {
     this.ttl = ttl;
+    this.prefix = prefix;
   }
 
   get time() {
@@ -15,11 +17,12 @@ export class NetworkCache {
   }
 
   async get<T extends any>(key: string, getNewValue: () => Promise<T>): Promise<T> {
-    if (this.needsUpdate(key)) {
-      return this.save<T>(key, getNewValue());
+    const fullKey = this.getFullKey(key);
+    if (this.needsUpdate(fullKey)) {
+      return this.save<T>(fullKey, getNewValue());
     }
 
-    return this.retrieve<T>(key);
+    return this.retrieve<T>(fullKey);
   }
 
   needsUpdate(key: string, force?: boolean): boolean {
@@ -61,26 +64,37 @@ export class NetworkCache {
   }
 
   pop<T extends any>(key: string): T | undefined {
-    const piece = this.getDataPiece(key);
-    localStorage.removeItem(key);
+    const fullKey = this.getFullKey(key);
+    const piece = this.getDataPiece(fullKey);
+    localStorage.removeItem(fullKey);
     return piece ? JSON.parse(piece.data) : undefined;
   }
 
   get size() {
-    return localStorage.length;
+    return Object.keys(localStorage).filter((key) => key.startsWith(this.prefix)).length;
   }
 
   cleanup() {
     Object.keys(localStorage).forEach((key) => {
-      const piece = this.getDataPiece(key);
-      if (piece && this.needsUpdate(key)) {
-        this.pop(key);
+      if (key.startsWith(this.prefix)) {
+        const piece = this.getDataPiece(key);
+        if (piece && this.needsUpdate(key)) {
+          this.pop(key);
+        }
       }
     });
   }
 
   clear() {
-    localStorage.clear();
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith(this.prefix)) {
+        localStorage.removeItem(key);
+      }
+    });
+  }
+
+  private getFullKey(key: string): string {
+    return `${this.prefix}${key}`;
   }
 
   private getDataPiece(key: string): DataPiece | null {
