@@ -52,7 +52,7 @@ export class NetworkCache {
         ts: this.time,
         data: serializedData,
       };
-      sessionStorage.setItem(key, JSON.stringify(dataPiece));
+      localStorage.setItem(key, JSON.stringify(dataPiece));
       return resolvedData;
     } catch (error) {
       console.error('Failed to save data:', error);
@@ -62,16 +62,16 @@ export class NetworkCache {
 
   pop<T extends any>(key: string): T | undefined {
     const piece = this.getDataPiece(key);
-    sessionStorage.removeItem(key);
+    localStorage.removeItem(key);
     return piece ? JSON.parse(piece.data) : undefined;
   }
 
   get size() {
-    return sessionStorage.length;
+    return localStorage.length;
   }
 
   cleanup() {
-    Object.keys(sessionStorage).forEach((key) => {
+    Object.keys(localStorage).forEach((key) => {
       const piece = this.getDataPiece(key);
       if (piece && this.needsUpdate(key)) {
         this.pop(key);
@@ -80,11 +80,11 @@ export class NetworkCache {
   }
 
   clear() {
-    sessionStorage.clear();
+    localStorage.clear();
   }
 
   private getDataPiece(key: string): DataPiece | null {
-    const item = sessionStorage.getItem(key);
+    const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : null;
   }
 }
