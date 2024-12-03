@@ -1,6 +1,6 @@
 {
   "name": "tonstakers-sdk",
-  "version": "0.0.9",
+  "version": "0.0.9-development",
   "description": "Tonstakers SDK",
   "license": "MIT",
   "repository": "git@github.com:tonstakers/tonstakers-sdk.git",
