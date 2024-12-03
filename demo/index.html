@@ -108,7 +108,7 @@
             document
                 .getElementById("disconnectWallet")
                 .addEventListener("click", async () => {
-                    await tonstakers.clearStorageData()
+                    await tonstakers.clearStorageUserData()
                     await tonConnectUI.disconnect();
                     document.getElementById("connectWallet").style.display =
                         "inline";

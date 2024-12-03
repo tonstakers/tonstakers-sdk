@@ -43,6 +43,7 @@ export declare class Tonstakers extends EventTarget {
     getStakersCount(ttl?: number): Promise<number>;
     getRates(ttl?: number): Promise<any>;
     clearStorageData(): Promise<void>;
+    clearStorageUserData(): Promise<void>;
     private getTonPrice;
     getStakedBalance(ttl?: number): Promise<number>;
     getAvailableBalance(ttl?: number): Promise<number>;

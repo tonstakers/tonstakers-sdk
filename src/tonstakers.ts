@@ -246,6 +246,14 @@ class Tonstakers extends EventTarget {
     this.cache.clear();
   }
 
+  async clearStorageUserData(): Promise<void> {
+    this.cache.clear([
+      'network-cache-withdrawals',
+      'network-cache-stakedBalance',
+      'network-cache-account'
+    ]);
+  }
+
   private async getTonPrice(ttl?: number): Promise<number> {
     try {
       const response = await this.cache.get("tonPrice", () =>

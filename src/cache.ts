@@ -87,10 +87,22 @@ export class NetworkCache {
     });
   }
 
-  clear() {
+  clear(methodsToClear?: string[]) {
+    if (!methodsToClear) {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith(this.prefix)) {
+          localStorage.removeItem(key);
+        }
+      });
+      return;
+    }
+
     Object.keys(localStorage).forEach((key) => {
       if (key.startsWith(this.prefix)) {
-        localStorage.removeItem(key);
+        const keyParts = key.split('-').slice(0, 3).join('-');
+        if (methodsToClear.some(method => keyParts === method)) {
+          localStorage.removeItem(key);
+        }
       }
     });
   }
