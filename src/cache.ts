@@ -1,14 +1,15 @@
 type DataPiece = {
   ts: number;
+  ttl: number;
   data: string;
 };
 
 export class NetworkCache {
-  ttl: number;
+  defaultTtl: number;
   prefix: string;
 
-  constructor(ttl: number, prefix: string = 'network-cache-') {
-    this.ttl = ttl;
+  constructor(defaultTtl: number, prefix: string = 'network-cache-') {
+    this.defaultTtl = defaultTtl;
     this.prefix = prefix;
   }
 
@@ -16,10 +17,10 @@ export class NetworkCache {
     return Date.now();
   }
 
-  async get<T extends any>(key: string, getNewValue: () => Promise<T>): Promise<T> {
+  async get<T extends any>(key: string, getNewValue: () => Promise<T>, ttl?: number): Promise<T> {
     const fullKey = this.getFullKey(key);
     if (this.needsUpdate(fullKey)) {
-      return this.save<T>(fullKey, getNewValue());
+      return this.save<T>(fullKey, getNewValue(), ttl);
     }
 
     return this.retrieve<T>(fullKey);
@@ -36,7 +37,7 @@ export class NetworkCache {
       return true;
     }
 
-    return this.time - piece.ts >= this.ttl;
+    return this.time - piece.ts >= piece.ttl;
   }
 
   async retrieve<T extends any>(key: string): Promise<T> {
@@ -47,12 +48,13 @@ export class NetworkCache {
     return JSON.parse(piece.data);
   }
 
-  async save<T extends any>(key: string, data: Promise<T>): Promise<T> {
+  async save<T extends any>(key: string, data: Promise<T>, ttl?: number): Promise<T> {
     try {
       const resolvedData = await data;
       const serializedData = JSON.stringify(resolvedData);
       const dataPiece: DataPiece = {
         ts: this.time,
+        ttl: ttl ?? this.defaultTtl,
         data: serializedData,
       };
       localStorage.setItem(key, JSON.stringify(dataPiece));

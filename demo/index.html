@@ -61,16 +61,16 @@
             // Fetch and display APY, TVL, and Stakers count on page load
             window.addEventListener("DOMContentLoaded", async () => {
                 try {
-                    const apy = await tonstakers.getCurrentApy();
+                    const apy = await tonstakers.getCurrentApy(600000);
                     document.getElementById("apy").innerText = apy;
 
-                    const tvl = await tonstakers.getTvl();
+                    const tvl = await tonstakers.getTvl(600000);
                     document.getElementById("tvl").innerText = tvl / 1000000000;
 
-                    const stakers = await tonstakers.getStakersCount();
+                    const stakers = await tonstakers.getStakersCount(600000);
                     document.getElementById("stakers").innerText = stakers;
 
-                    const rates = await tonstakers.getRates();
+                    const rates = await tonstakers.getRates(600000);
                     document.getElementById("TONUSD").innerText = rates.TONUSD;
                     document.getElementById("tsTONTON").innerText =
                         rates.tsTONTON;
@@ -108,6 +108,7 @@
             document
                 .getElementById("disconnectWallet")
                 .addEventListener("click", async () => {
+                    await tonstakers.clearStorageData()
                     await tonConnectUI.disconnect();
                     document.getElementById("connectWallet").style.display =
                         "inline";
@@ -177,7 +178,7 @@
             document
                 .getElementById("getPoolData")
                 .addEventListener("click", async () => {
-                    const poolData = await tonstakers.fetchStakingPoolInfo();
+                    const poolData = await tonstakers.fetchStakingPoolInfo(5000);
                     document.getElementById("poolDataDisplay").innerText =
                         JSON.stringify(poolData, null, 2);
                 });
@@ -190,7 +191,7 @@
                     const activeWithdrawalsDiv = document.getElementById("activeWithdrawals");
                     activeWithdrawalsDiv.innerHTML = "";
 
-                    const activeWithdrawals = await tonstakers.getActiveWithdrawalNFTs();
+                    const activeWithdrawals = await tonstakers.getActiveWithdrawalNFTs(10000);
                     if(!activeWithdrawals.length) {
                         activeWithdrawalsDiv.innerText = 'you have no active withdrawals'
                         return
@@ -239,13 +240,13 @@
             }
 
             async function getStakedBalance() {
-                const stakedBalance = await tonstakers.getStakedBalance();
+                const stakedBalance = await tonstakers.getStakedBalance(10000);
                 document.getElementById("stakedBalance").innerText =
                     stakedBalance / 1000000000;
             }
 
             async function getAvailableBalance() {
-                const availableBalance = await tonstakers.getAvailableBalance();
+                const availableBalance = await tonstakers.getAvailableBalance(10000);
                 document.getElementById("availableBalance").innerText =
                     availableBalance / 1000000000;
             }

@@ -25,4 +25,3 @@ export const CONTRACT = {
   UNSTAKE_FEE_RES: 1.05,
   RECOMMENDED_FEE_RESERVE: 1.1,
 };
-
