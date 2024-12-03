@@ -129,7 +129,7 @@ class Tonstakers extends EventTarget {
     this.dispatchEvent(new Event("initialized"));
   }
 
-  async fetchStakingPoolInfo() {
+  async fetchStakingPoolInfo(ttl?: number) {
     const getPoolInfo = async () => {
       const poolInfo = await this.client.staking.getStakingPoolInfo(
         this.stakingContractAddress!.toString(),
@@ -146,14 +146,14 @@ class Tonstakers extends EventTarget {
       };
     };
 
-    return this.cache.get("poolInfo", getPoolInfo);
+    return this.cache.get("poolInfo", getPoolInfo, ttl);
   }
 
-  async getCurrentApy(): Promise<number> {
+  async getCurrentApy(ttl? :number): Promise<number> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      const response = await this.fetchStakingPoolInfo();
+      const response = await this.fetchStakingPoolInfo(ttl);
       return response.poolInfo.apy;
     } catch {
       console.error("Failed to get current APY");
@@ -161,7 +161,7 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getHistoricalApy(): Promise<ApyHistory[]> {
+  async getHistoricalApy(ttl?: number): Promise<ApyHistory[]> {
     const stakingAddress = this.stakingContractAddress;
 
     if (!stakingAddress) throw new Error("Staking contract address not set.");
@@ -169,6 +169,7 @@ class Tonstakers extends EventTarget {
     try {
       const stakingHistory = await this.cache.get("stakingHistory", () =>
         this.client!.staking.getStakingPoolHistory(stakingAddress.toString()),
+        ttl
       );
       return stakingHistory.apy;
     } catch {
@@ -191,11 +192,11 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getTvl(): Promise<number> {
+  async getTvl(ttl?:number): Promise<number> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      const response = await this.fetchStakingPoolInfo();
+      const response = await this.fetchStakingPoolInfo(ttl);
       return response.poolInfo.total_amount;
     } catch {
       console.error("Failed to get TVL");
@@ -203,11 +204,11 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getStakersCount(): Promise<number> {
+  async getStakersCount(ttl?:number): Promise<number> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      const response = await this.fetchStakingPoolInfo();
+      const response = await this.fetchStakingPoolInfo(ttl);
       return response.poolInfo.current_nominators;
     } catch {
       console.error("Failed to get stakers count");
@@ -215,11 +216,11 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getRates(): Promise<any> {
+  async getRates(ttl?:number): Promise<any> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      const poolData = await this.fetchStakingPoolInfo();
+      const poolData = await this.fetchStakingPoolInfo(ttl);
 
       const poolBalance = poolData.poolFullData.total_balance;
       const poolSupply = poolData.poolFullData.supply;
@@ -229,7 +230,7 @@ class Tonstakers extends EventTarget {
       const poolProjectedSupply = poolData.poolFullData.projected_supply;
       const tsTONTONProjected = poolProjectedBalance / poolProjectedSupply;
 
-      const TONUSD = await this.getTonPrice();
+      const TONUSD = await this.getTonPrice(ttl);
       return {
         TONUSD,
         tsTONTON,
@@ -241,13 +242,26 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  private async getTonPrice(): Promise<number> {
+  async clearStorageData(): Promise<void> {
+    this.cache.clear();
+  }
+
+  async clearStorageUserData(): Promise<void> {
+    this.cache.clear([
+      'network-cache-withdrawals',
+      'network-cache-stakedBalance',
+      'network-cache-account'
+    ]);
+  }
+
+  private async getTonPrice(ttl?: number): Promise<number> {
     try {
       const response = await this.cache.get("tonPrice", () =>
         this.client!.rates.getRates({
           tokens: ["ton"],
           currencies: ["usd"],
         }),
+        ttl
       );
 
       const tonPrice = response.rates?.TON?.prices?.USD;
@@ -258,7 +272,7 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getStakedBalance(): Promise<number> {
+  async getStakedBalance(ttl?: number): Promise<number> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
 
@@ -272,6 +286,7 @@ class Tonstakers extends EventTarget {
             addressString,
             "get_wallet_data",
           ),
+        ttl
       );
 
       const formattedBalance = jettonWalletData.decoded.balance;
@@ -283,13 +298,14 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getAvailableBalance(): Promise<number> {
+  async getAvailableBalance(ttl?: number): Promise<number> {
     const walletAddress = this.walletAddress;
     if (!walletAddress) throw new Error("Wallet is not connected.");
 
     try {
       const account = await this.cache.get("account", () =>
         this.client!.accounts.getAccount(walletAddress.toString()),
+        ttl
       );
 
       const balance =
@@ -302,13 +318,14 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getInstantLiquidity(): Promise<number> {
+  async getInstantLiquidity(ttl?: number): Promise<number> {
     const account = await this.cache.get("contract-account", () =>
       this.client!.accounts.getAccount(
         this.isTestnet
           ? CONTRACT.STAKING_CONTRACT_ADDRESS_TESTNET
           : CONTRACT.STAKING_CONTRACT_ADDRESS,
       ),
+      ttl
     );
 
     return account.balance;
@@ -418,12 +435,13 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getActiveWithdrawalNFTs(): Promise<NftItemWithEstimates[]> {
+  async getActiveWithdrawalNFTs(ttl?: number): Promise<NftItemWithEstimates[]> {
     try {
       const poolData = await this.fetchStakingPoolInfo();
       const withdrawalPayout = poolData.poolFullData.withdrawal_payout;
       return await this.cache.get("withdrawals-" + withdrawalPayout, () =>
-        this.getFilteredByAddressNFTs(withdrawalPayout)
+        this.getFilteredByAddressNFTs(withdrawalPayout),
+        ttl
       );
     } catch (error) {
       console.error(

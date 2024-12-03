@@ -32,26 +32,28 @@ export declare class Tonstakers extends EventTarget {
     private initialize;
     private deinitialize;
     private setupWallet;
-    fetchStakingPoolInfo(): Promise<{
+    fetchStakingPoolInfo(ttl?: number): Promise<{
         poolInfo: PoolInfo;
         poolFullData: any;
     }>;
-    getCurrentApy(): Promise<number>;
-    getHistoricalApy(): Promise<ApyHistory[]>;
+    getCurrentApy(ttl?: number): Promise<number>;
+    getHistoricalApy(ttl?: number): Promise<ApyHistory[]>;
     getRoundTimestamps(): Promise<[number, number]>;
-    getTvl(): Promise<number>;
-    getStakersCount(): Promise<number>;
-    getRates(): Promise<any>;
+    getTvl(ttl?: number): Promise<number>;
+    getStakersCount(ttl?: number): Promise<number>;
+    getRates(ttl?: number): Promise<any>;
+    clearStorageData(): Promise<void>;
+    clearStorageUserData(): Promise<void>;
     private getTonPrice;
-    getStakedBalance(): Promise<number>;
-    getAvailableBalance(): Promise<number>;
-    getInstantLiquidity(): Promise<number>;
+    getStakedBalance(ttl?: number): Promise<number>;
+    getAvailableBalance(ttl?: number): Promise<number>;
+    getInstantLiquidity(ttl?: number): Promise<number>;
     stake(amount: number): Promise<void>;
     stakeMax(): Promise<void>;
     unstake(amount: number): Promise<void>;
     unstakeInstant(amount: number): Promise<void>;
     unstakeBestRate(amount: number): Promise<void>;
-    getActiveWithdrawalNFTs(): Promise<NftItemWithEstimates[]>;
+    getActiveWithdrawalNFTs(ttl?: number): Promise<NftItemWithEstimates[]>;
     private getFilteredByAddressNFTs;
     private preparePayload;
     private getJettonWalletAddress;
