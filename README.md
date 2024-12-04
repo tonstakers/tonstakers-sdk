@@ -1,3 +1,4 @@
+
 # Tonstakers SDK
 
 The Tonstakers SDK offers an advanced set of tools for developers aiming to incorporate staking functionalities into their applications on the TON blockchain. This updated version introduces a more extensive interaction with the TON ecosystem, including staking operations, balance inquiries, and much more, enhancing your application's capabilities.
@@ -120,6 +121,22 @@ const rates = await tonstakers.getRates();
 console.log(`1 TON = ${rates.TONUSD} USD`);
 console.log(`1 tsTON = ${rates.tsTONTON} TON`);
 console.log(`Projected 1 tsTON = ${rates.tsTONTONProjected} TON`);
+
+const [cycleStart, cycleEnd] = await tonstakers.getRoundTimestamps();
+console.log(`Cycle start: ${cycleStart}, Cycle end: ${cycleEnd}`);
+
+const activeWithdrawals = await tonstakers.getActiveWithdrawalNFTs();
+console.log(`Active withdrawal NFTs: ${JSON.stringify(activeWithdrawals)}`);
+
+const instantLiquidity = await tonstakers.getInstantLiquidity();
+console.log(`Instant liquidity: ${instantLiquidity}`);
+```
+
+Clear storage data:
+
+```javascript
+await tonstakers.clearStorageData(); // Clear all cached data
+await tonstakers.clearStorageUserData(); // Clear cached user-specific data
 ```
 
 ## Demo
