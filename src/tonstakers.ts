@@ -370,105 +370,66 @@ class Tonstakers extends EventTarget {
   async stake(amount: number): Promise<SendTransactionResponse> {
     if (!this.walletAddress || !Tonstakers.jettonWalletAddress)
       throw new Error("Tonstakers is not fully initialized.");
-    try {
-      await this.validateAmount(amount);
-      const totalAmount = toNano(amount + CONTRACT.STAKE_FEE_RES); // Includes transaction fee
-      const payload = this.preparePayload("stake", amount);
-      const result = await this.sendTransaction(
-        this.stakingContractAddress!,
-        totalAmount,
-        payload,
-      );
-      log(`Staked ${amount} TON successfully.`);
-      return result;
-    } catch (error) {
-      console.error(
-        "Staking failed:",
-        error instanceof Error ? error.message : error,
-      );
-      throw new Error("Staking operation failed.");
-    }
+
+    await this.validateAmount(amount);
+    const totalAmount = toNano(amount + CONTRACT.STAKE_FEE_RES); // Includes transaction fee
+    const payload = this.preparePayload("stake", amount);
+    const result = await this.sendTransaction(
+      this.stakingContractAddress!,
+      totalAmount,
+      payload,
+    );
+    log(`Staked ${amount} TON successfully.`);
+    return result;
   }
 
-  async stakeMax(): Promise<void> {
-    try {
-      const availableBalance = await this.getAvailableBalance();
-      const result = await this.stake(availableBalance);
-      log(`Staked maximum amount of ${availableBalance} TON successfully.`);
-      return result;
-    } catch (error) {
-      console.error(
-        "Maximum staking failed:",
-        error instanceof Error ? error.message : error,
-      );
-      throw new Error("Maximum staking operation failed.");
-    }
+  async stakeMax(): Promise<SendTransactionResponse> {
+    const availableBalance = await this.getAvailableBalance();
+    const result = await this.stake(availableBalance);
+    log(`Staked maximum amount of ${availableBalance} TON successfully.`);
+    return result;
   }
 
   async unstake(amount: number): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
-    try {
-      await this.validateAmount(amount);
-      const payload = this.preparePayload("unstake", amount);
-      const result = await this.sendTransaction(
-        Tonstakers.jettonWalletAddress,
-        toNano(CONTRACT.UNSTAKE_FEE_RES),
-        payload,
-      ); // Includes transaction fee
-      log(`Initiated unstaking of ${amount} tsTON.`);
-      return result;
-    } catch (error) {
-      console.error(
-        "Unstaking failed:",
-        error instanceof Error ? error.message : error,
-      );
-      throw new Error("Unstaking operation failed.");
-    }
+    await this.validateAmount(amount);
+    const payload = this.preparePayload("unstake", amount);
+    const result = await this.sendTransaction(
+      Tonstakers.jettonWalletAddress,
+      toNano(CONTRACT.UNSTAKE_FEE_RES),
+      payload,
+    ); // Includes transaction fee
+    log(`Initiated unstaking of ${amount} tsTON.`);
+    return result;
   }
 
   async unstakeInstant(amount: number): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
-    try {
-      await this.validateAmount(amount);
-      const payload = this.preparePayload("unstake", amount, false, true);
-      const result = await this.sendTransaction(
-        Tonstakers.jettonWalletAddress,
-        toNano(CONTRACT.UNSTAKE_FEE_RES),
-        payload,
-      ); // Includes transaction fee
-      log(`Initiated instant unstaking of ${amount} tsTON.`);
-      return result;
-    } catch (error) {
-      console.error(
-        "Instant unstaking failed:",
-        error instanceof Error ? error.message : error,
-      );
-      throw new Error("Instant unstaking operation failed.");
-    }
+    await this.validateAmount(amount);
+    const payload = this.preparePayload("unstake", amount, false, true);
+    const result = await this.sendTransaction(
+      Tonstakers.jettonWalletAddress,
+      toNano(CONTRACT.UNSTAKE_FEE_RES),
+      payload,
+    ); // Includes transaction fee
+    log(`Initiated instant unstaking of ${amount} tsTON.`);
+    return result;
   }
 
   async unstakeBestRate(amount: number): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
-    try {
-      await this.validateAmount(amount);
-      const payload = this.preparePayload("unstake", amount, true);
-      const result = await this.sendTransaction(
-        Tonstakers.jettonWalletAddress,
-        toNano(CONTRACT.UNSTAKE_FEE_RES),
-        payload,
-      ); // Includes transaction fee
-      log(`Initiated unstaking of ${amount} tsTON at the best rate.`);
-      return result;
-    } catch (error) {
-      console.error(
-        "Best rate unstaking failed:",
-        error instanceof Error ? error.message : error,
-      );
-      throw new Error("Best rate unstaking operation failed.");
-    }
+    await this.validateAmount(amount);
+    const payload = this.preparePayload("unstake", amount, true);
+    const result = await this.sendTransaction(
+      Tonstakers.jettonWalletAddress,
+      toNano(CONTRACT.UNSTAKE_FEE_RES),
+      payload,
+    ); // Includes transaction fee
+    log(`Initiated unstaking of ${amount} tsTON at the best rate.`);
+    return result;
   }
 
   async getActiveWithdrawalNFTs(ttl?: number): Promise<NftItemWithEstimates[]> {
