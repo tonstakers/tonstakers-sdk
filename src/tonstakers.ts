@@ -39,6 +39,15 @@ interface NftItemWithEstimates extends NftItem {
   tsTONAmount: number;
 }
 
+export interface WithdrawalPayoutData {
+  active: {
+    withdrawal_payout: string;
+  };
+  previous: {
+    withdrawal_payout: string;
+  };
+}
+
 class Tonstakers extends EventTarget {
   private connector: IWalletConnector;
   private client!: Api<any>;
@@ -52,11 +61,11 @@ class Tonstakers extends EventTarget {
   public isTestnet: boolean;
 
   constructor({
-    connector,
-    partnerCode = CONTRACT.PARTNER_CODE,
-    tonApiKey,
-    cacheFor,
-  }: TonstakersOptions) {
+                connector,
+                partnerCode = CONTRACT.PARTNER_CODE,
+                tonApiKey,
+                cacheFor,
+              }: TonstakersOptions) {
     super();
     this.connector = connector;
     this.partnerCode = partnerCode;
@@ -73,15 +82,36 @@ class Tonstakers extends EventTarget {
     });
   }
 
+  private async getWithdrawalPayouts(): Promise<WithdrawalPayoutData | undefined> {
+    try {
+
+      const requestOptions: RequestInit = {
+        method: "GET",
+        redirect: "follow",
+      };
+
+      const response = await fetch("https://api.tonstakers.com/api/v1/pool/withdrawal_payout", requestOptions);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('Error fetching withdrawal payouts:', error);
+      return undefined;
+    }
+  }
+
   private async setupClient(): Promise<void> {
     log("Setting up Tonstakers SDK, isTestnet:", this.isTestnet);
     const baseApiParams = this.tonApiKey
       ? {
-          headers: {
-            Authorization: `Bearer ${this.tonApiKey}`,
-            "Content-type": "application/json",
-          },
-        }
+        headers: {
+          Authorization: `Bearer ${this.tonApiKey}`,
+          "Content-type": "application/json",
+        },
+      }
       : {};
     const httpClient = new HttpClient({
       baseUrl: this.isTestnet ? BLOCKCHAIN.API_URL_TESTNET : BLOCKCHAIN.API_URL,
@@ -168,7 +198,7 @@ class Tonstakers extends EventTarget {
 
     try {
       const stakingHistory = await this.cache.get("stakingHistory", () =>
-        this.client!.staking.getStakingPoolHistory(stakingAddress.toString()),
+          this.client!.staking.getStakingPoolHistory(stakingAddress.toString()),
         ttl
       );
       return stakingHistory.apy;
@@ -257,10 +287,10 @@ class Tonstakers extends EventTarget {
   private async getTonPrice(ttl?: number): Promise<number> {
     try {
       const response = await this.cache.get("tonPrice", () =>
-        this.client!.rates.getRates({
-          tokens: ["ton"],
-          currencies: ["usd"],
-        }),
+          this.client!.rates.getRates({
+            tokens: ["ton"],
+            currencies: ["usd"],
+          }),
         ttl
       );
 
@@ -304,7 +334,7 @@ class Tonstakers extends EventTarget {
 
     try {
       const account = await this.cache.get("account", () =>
-        this.client!.accounts.getAccount(walletAddress.toString()),
+          this.client!.accounts.getAccount(walletAddress.toString()),
         ttl
       );
 
@@ -320,11 +350,11 @@ class Tonstakers extends EventTarget {
 
   async getInstantLiquidity(ttl?: number): Promise<number> {
     const account = await this.cache.get("contract-account", () =>
-      this.client!.accounts.getAccount(
-        this.isTestnet
-          ? CONTRACT.STAKING_CONTRACT_ADDRESS_TESTNET
-          : CONTRACT.STAKING_CONTRACT_ADDRESS,
-      ),
+        this.client!.accounts.getAccount(
+          this.isTestnet
+            ? CONTRACT.STAKING_CONTRACT_ADDRESS_TESTNET
+            : CONTRACT.STAKING_CONTRACT_ADDRESS,
+        ),
       ttl
     );
 
@@ -437,12 +467,23 @@ class Tonstakers extends EventTarget {
 
   async getActiveWithdrawalNFTs(ttl?: number): Promise<NftItemWithEstimates[]> {
     try {
-      const poolData = await this.fetchStakingPoolInfo();
-      const withdrawalPayout = poolData.poolFullData.withdrawal_payout;
-      return await this.cache.get("withdrawals-" + withdrawalPayout, () =>
-        this.getFilteredByAddressNFTs(withdrawalPayout),
+      const withdrawalPayouts = await this.getWithdrawalPayouts();
+      if (!withdrawalPayouts) {
+        throw new Error("Failed to get withdrawal payouts.");
+      }
+      const { active, previous } = withdrawalPayouts;
+      const activeNFTsPromise = this.cache.get(
+        "withdrawals-active-" + active.withdrawal_payout,
+        () => this.getFilteredByAddressNFTs(active.withdrawal_payout),
         ttl
       );
+      const previousNFTsPromise = this.cache.get(
+        "withdrawals-previous-" + previous.withdrawal_payout,
+        () => this.getFilteredByAddressNFTs(previous.withdrawal_payout),
+        ttl
+      );
+      const [activeNFTs, previousNFTs] = await Promise.all([activeNFTsPromise, previousNFTsPromise]);
+      return [...activeNFTs, ...previousNFTs];
     } catch (error) {
       console.error(
         "Failed to get active withdrawals:",

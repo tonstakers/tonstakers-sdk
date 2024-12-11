@@ -28,6 +28,7 @@ export declare class Tonstakers extends EventTarget {
     ready: boolean;
     isTestnet: boolean;
     constructor({ connector, partnerCode, tonApiKey, cacheFor, }: TonstakersOptions);
+    private getWithdrawalPayouts;
     private setupClient;
     private initialize;
     private deinitialize;
