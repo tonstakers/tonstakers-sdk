@@ -4,6 +4,10 @@ import { BLOCKCHAIN, CONTRACT, TIMING } from "./constants";
 import { NetworkCache } from "./cache";
 import { log } from "./utils";
 
+interface SendTransactionResponse {
+  boc: string;
+}
+
 interface TransactionMessage {
   address: string;
   amount: string;
@@ -22,7 +26,9 @@ interface WalletAccount {
 
 interface IWalletConnector {
   wallet: { account?: WalletAccount };
-  sendTransaction: (transactionDetails: TransactionDetails) => Promise<void>;
+  sendTransaction: (
+    transactionDetails: TransactionDetails,
+  ) => Promise<SendTransactionResponse>;
   onStatusChange: (callback: (wallet: any) => void) => void;
 }
 
@@ -361,7 +367,7 @@ class Tonstakers extends EventTarget {
     return account.balance;
   }
 
-  async stake(amount: number): Promise<void> {
+  async stake(amount: number): Promise<SendTransactionResponse> {
     if (!this.walletAddress || !Tonstakers.jettonWalletAddress)
       throw new Error("Tonstakers is not fully initialized.");
     try {
@@ -399,7 +405,7 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async unstake(amount: number): Promise<void> {
+  async unstake(amount: number): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
     try {
@@ -421,7 +427,7 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async unstakeInstant(amount: number): Promise<void> {
+  async unstakeInstant(amount: number): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
     try {
@@ -443,7 +449,7 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async unstakeBestRate(amount: number): Promise<void> {
+  async unstakeBestRate(amount: number): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
     try {
@@ -588,7 +594,7 @@ class Tonstakers extends EventTarget {
     address: Address,
     amount: bigint,
     payload: string,
-  ): Promise<void> {
+  ): Promise<SendTransactionResponse> {
     const validUntil = +new Date() + TIMING.TIMEOUT;
     const transaction: TransactionDetails = {
       validUntil,
