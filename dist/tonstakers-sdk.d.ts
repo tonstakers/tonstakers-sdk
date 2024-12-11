@@ -6,7 +6,7 @@ declare interface IWalletConnector {
     wallet: {
         account?: WalletAccount;
     };
-    sendTransaction: (transactionDetails: TransactionDetails) => Promise<void>;
+    sendTransaction: (transactionDetails: TransactionDetails) => Promise<SendTransactionResponse>;
     onStatusChange: (callback: (wallet: any) => void) => void;
 }
 
@@ -14,6 +14,10 @@ declare interface NftItemWithEstimates extends NftItem {
     estimatedPayoutDateTime: number;
     roundEndTime: number;
     tsTONAmount: number;
+}
+
+declare interface SendTransactionResponse {
+    boc: string;
 }
 
 export declare class Tonstakers extends EventTarget {
@@ -49,11 +53,11 @@ export declare class Tonstakers extends EventTarget {
     getStakedBalance(ttl?: number): Promise<number>;
     getAvailableBalance(ttl?: number): Promise<number>;
     getInstantLiquidity(ttl?: number): Promise<number>;
-    stake(amount: number): Promise<void>;
-    stakeMax(): Promise<void>;
-    unstake(amount: number): Promise<void>;
-    unstakeInstant(amount: number): Promise<void>;
-    unstakeBestRate(amount: number): Promise<void>;
+    stake(amount: number): Promise<SendTransactionResponse>;
+    stakeMax(): Promise<SendTransactionResponse>;
+    unstake(amount: number): Promise<SendTransactionResponse>;
+    unstakeInstant(amount: number): Promise<SendTransactionResponse>;
+    unstakeBestRate(amount: number): Promise<SendTransactionResponse>;
     getActiveWithdrawalNFTs(ttl?: number): Promise<NftItemWithEstimates[]>;
     private getFilteredByAddressNFTs;
     private preparePayload;
