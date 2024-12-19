@@ -45,13 +45,15 @@ interface NftItemWithEstimates extends NftItem {
   tsTONAmount: number;
 }
 
+export interface RoundInfo {
+  withdrawal_payout: string;
+  cycle_start: number;
+  cycle_end: number;
+}
+
 export interface WithdrawalPayoutData {
-  active: {
-    withdrawal_payout: string;
-  };
-  previous: {
-    withdrawal_payout: string;
-  };
+  active: RoundInfo;
+  previous: RoundInfo;
 }
 
 class Tonstakers extends EventTarget {
@@ -214,17 +216,34 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getRoundTimestamps(): Promise<[number, number]> {
+  async getRoundTimestamps(ttl?: number): Promise<[number, number]> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
 
     try {
-      const response = await this.fetchStakingPoolInfo();
-      const poolInfo = response.poolInfo;
-      return [poolInfo.cycle_start * 1000, poolInfo.cycle_end * 1000];
-    } catch {
-      console.error("Failed to get current APY");
-      throw new Error("Could not retrieve current APY.");
+      const response = await this.cache.get("withdrawalPayouts", () =>
+          this.getWithdrawalPayouts(),
+        ttl
+      );
+      const previous = response?.previous
+      const active = response?.active
+      const msModify = 1000;
+
+      if(!previous?.cycle_end || !active?.cycle_end){
+        const data = await this.fetchStakingPoolInfo();
+        const poolInfo = data.poolInfo;
+        return [poolInfo.cycle_start * msModify, poolInfo.cycle_end * msModify];
+      }
+
+      const currentTime = Date.now() / msModify;
+
+      if (currentTime > previous.cycle_end) {
+        return [previous.cycle_start * msModify, previous.cycle_end * msModify];
+      }
+      return [active.cycle_start * msModify, active.cycle_end * msModify];
+    } catch (error) {
+      console.error("Failed to get round timestamps:", error);
+      throw new Error("Could not retrieve round timestamps.");
     }
   }
 
@@ -439,14 +458,15 @@ class Tonstakers extends EventTarget {
         throw new Error("Failed to get withdrawal payouts.");
       }
       const { active, previous } = withdrawalPayouts;
+      const [, endDate] = await this.getRoundTimestamps();
       const activeNFTsPromise = this.cache.get(
         "withdrawals-active-" + active.withdrawal_payout,
-        () => this.getFilteredByAddressNFTs(active.withdrawal_payout),
+        () => this.getFilteredByAddressNFTs(active.withdrawal_payout, endDate),
         ttl
       );
       const previousNFTsPromise = this.cache.get(
         "withdrawals-previous-" + previous.withdrawal_payout,
-        () => this.getFilteredByAddressNFTs(previous.withdrawal_payout),
+        () => this.getFilteredByAddressNFTs(previous.withdrawal_payout, endDate),
         ttl
       );
       const [activeNFTs, previousNFTs] = await Promise.all([activeNFTsPromise, previousNFTsPromise]);
@@ -460,10 +480,9 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  private async getFilteredByAddressNFTs(payoutAddress: string): Promise<NftItemWithEstimates[]> {
+  private async getFilteredByAddressNFTs(payoutAddress: string, endDate: number): Promise<NftItemWithEstimates[]> {
     try {
       const payoutNftCollection = await this.client.nft.getItemsFromCollection(payoutAddress);
-      const [, endDate] = await this.getRoundTimestamps();
       const endDateInSeconds = Math.floor(endDate / 1000);
       const filteredItems: NftItemWithEstimates[] = [];
       let itemsBeforeCount = 0;
