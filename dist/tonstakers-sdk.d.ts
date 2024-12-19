@@ -43,7 +43,7 @@ export declare class Tonstakers extends EventTarget {
     }>;
     getCurrentApy(ttl?: number): Promise<number>;
     getHistoricalApy(ttl?: number): Promise<ApyHistory[]>;
-    getRoundTimestamps(): Promise<[number, number]>;
+    getRoundTimestamps(ttl?: number): Promise<[number, number]>;
     getTvl(ttl?: number): Promise<number>;
     getStakersCount(ttl?: number): Promise<number>;
     getRates(ttl?: number): Promise<any>;
