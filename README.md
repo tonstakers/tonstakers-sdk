@@ -102,6 +102,9 @@ Retrieve information:
 const stakedBalance = await tonstakers.getStakedBalance();
 console.log(`Current staked balance: ${stakedBalance}`);
 
+const tonBalance = await tonstakers.getBalance();
+console.log(`Current user ton balance: ${tonBalance}`);
+
 const availableBalance = await tonstakers.getAvailableBalance();
 console.log(`Available balance for staking: ${availableBalance}`);
 

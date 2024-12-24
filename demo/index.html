@@ -223,20 +223,8 @@
                 });
 
             async function getWalletBalance() {
-                if (connector.wallet) {
-                    const wallet = connector.wallet;
-                    let balanceUrl =
-                        wallet.account.chain === "-3"
-                            ? "https://testnet.toncenter.com/api/v2/getAddressBalance?address=" +
-                              wallet.account.address
-                            : "https://toncenter.com/api/v2/getAddressBalance?address=" +
-                              wallet.account.address;
-
-                    const balanceResponse = await fetch(balanceUrl);
-                    const balanceData = await balanceResponse.json();
-                    document.getElementById("balance").innerText =
-                        balanceData.result / 1000000000;
-                }
+                const balance = await tonstakers.getBalance(10000);
+                document.getElementById("balance").innerText = balance / 1000000000;
             }
 
             async function getStakedBalance() {

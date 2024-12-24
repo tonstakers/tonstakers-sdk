@@ -52,6 +52,7 @@ export declare class Tonstakers extends EventTarget {
     private getTonPrice;
     getStakedBalance(ttl?: number): Promise<number>;
     getAvailableBalance(ttl?: number): Promise<number>;
+    getBalance(ttl?: number): Promise<number>;
     getInstantLiquidity(ttl?: number): Promise<number>;
     stake(amount: number): Promise<SendTransactionResponse>;
     stakeMax(): Promise<SendTransactionResponse>;
