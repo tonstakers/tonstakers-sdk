@@ -352,7 +352,7 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getAvailableBalance(ttl?: number): Promise<number> {
+  async getBalance(ttl?: number): Promise<number> {
     const walletAddress = this.walletAddress;
     if (!walletAddress) throw new Error("Wallet is not connected.");
 
@@ -362,11 +362,22 @@ class Tonstakers extends EventTarget {
         ttl
       );
 
-      const balance =
-        Number(account.balance) -
-        Number(toNano(CONTRACT.RECOMMENDED_FEE_RESERVE));
+      return Math.max(Number(account.balance), 0);
+    } catch {
+      return 0;
+    }
+  }
 
-      return Math.max(balance, 0);
+  async getAvailableBalance(ttl?: number): Promise<number> {
+    const walletAddress = this.walletAddress;
+    if (!walletAddress) throw new Error("Wallet is not connected.");
+
+    try {
+      const balance = await this.getBalance(ttl)
+      const availableBalance =
+        balance - Number(toNano(CONTRACT.RECOMMENDED_FEE_RESERVE));
+
+      return Math.max(availableBalance, 0);
     } catch {
       return 0;
     }
