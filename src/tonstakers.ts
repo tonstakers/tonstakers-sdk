@@ -463,7 +463,12 @@ class Tonstakers extends EventTarget {
 
   async getActiveWithdrawalNFTs(ttl?: number): Promise<NftItemWithEstimates[]> {
     try {
-      const withdrawalPayouts = await this.getWithdrawalPayouts();
+      const withdrawalPayouts = await this.cache.get(
+        "withdrawalPayouts",
+        () =>
+          this.getWithdrawalPayouts(),
+        ttl
+      );
       if (!withdrawalPayouts) {
         throw new Error("Failed to get withdrawal payouts.");
       }

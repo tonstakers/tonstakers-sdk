@@ -21,6 +21,7 @@
         <button id="unstakeInstant">Unstake 1 tsTON Instant</button>
         <button id="unstakeBestRate">Unstake 1 tsTON Best Rate</button>
         <button id="refreshBalances">Refresh Balances</button>
+        <button id="getRounds">Get Rounds info</button>
         <button id="getWithdrawals">Get Withdrawal List</button>
         <button id="getPoolData">Get Pool Data</button>
         <br /><br />
@@ -37,6 +38,7 @@
         <div id="apyDisplay">APY: <span id="apy"></span></div>
         <div id="tvlDisplay">TVL: <span id="tvl"></span></div>
         <div id="stakersDisplay">Stakers: <span id="stakers"></span></div>
+        <div id="roundsDisplay">Rounds: <span id="rounds"></span></div>
         <div id="TONUSDRateDisplay">1 TON = <span id="TONUSD">0</span>$</div>
         <div id="TONtsTONRateDisplay">
             1 tsTON = <span id="tsTONTON">0</span> TON
@@ -69,6 +71,9 @@
 
                     const stakers = await tonstakers.getStakersCount(600000);
                     document.getElementById("stakers").innerText = stakers;
+
+                    const [roundStart, roundEnd] = await tonstakers.getRoundTimestamps(5000);
+                    document.getElementById("rounds").innerText = `start ${roundStart}, end ${roundEnd}`;
 
                     const rates = await tonstakers.getRates(600000);
                     document.getElementById("TONUSD").innerText = rates.TONUSD;
@@ -181,6 +186,13 @@
                     const poolData = await tonstakers.fetchStakingPoolInfo(5000);
                     document.getElementById("poolDataDisplay").innerText =
                         JSON.stringify(poolData, null, 2);
+                });
+
+            document
+                .getElementById("getRounds")
+                .addEventListener("click", async () => {
+                    const [roundStart, roundEnd] = await tonstakers.getRoundTimestamps(5000);
+                    document.getElementById("rounds").innerText = `start: ${roundStart}, end: ${roundEnd}`;
                 });
 
 
