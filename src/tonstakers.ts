@@ -479,7 +479,11 @@ class Tonstakers extends EventTarget {
 
   private async getFilteredByAddressNFTs(payoutAddress: string, endDate: number): Promise<NftItemWithEstimates[]> {
     try {
-      const payoutNftCollection = await this.client.nft.getItemsFromCollection(payoutAddress);
+      if(!this.walletAddress){
+        throw new Error("No wallet address is set.");
+      }
+      const payoutNftCollection = await this.client.accounts.getAccountNftItems(this.walletAddress.toString(), {collection: payoutAddress });
+      console.log(payoutNftCollection);
       const endDateInSeconds = Math.floor(endDate / 1000);
       const filteredItems: NftItemWithEstimates[] = [];
       let itemsBeforeCount = 0;
@@ -498,7 +502,7 @@ class Tonstakers extends EventTarget {
         }
         itemsBeforeCount++;
       }
-
+     
       return filteredItems;
     } catch (error) {
       console.error("Failed to get withdrawal history:", error);
