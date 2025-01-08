@@ -72,7 +72,8 @@
                     const stakers = await tonstakers.getStakersCount(600000);
                     document.getElementById("stakers").innerText = stakers;
 
-                    const [roundStart, roundEnd] = await tonstakers.getRoundTimestamps(5000);
+                    const withdrawalsPayout = await tonstakers.getWithdrawalPayouts(600000);
+                    const [roundStart, roundEnd] = Tonstakers.getRoundTimestamps(withdrawalsPayout);
                     document.getElementById("rounds").innerText = `start ${roundStart}, end ${roundEnd}`;
 
                     const rates = await tonstakers.getRates(600000);
@@ -86,7 +87,7 @@
 
             tonstakers.addEventListener("initialized", async () => {
                 getStakedBalance();
-                getAvailableBalance();
+                getWalletBalance();
             });
 
             const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
@@ -191,7 +192,8 @@
             document
                 .getElementById("getRounds")
                 .addEventListener("click", async () => {
-                    const [roundStart, roundEnd] = await tonstakers.getRoundTimestamps(5000);
+                    const withdrawalsPayout = await tonstakers.getWithdrawalPayouts(600000);
+                    const [roundStart, roundEnd] = Tonstakers.getRoundTimestamps(withdrawalsPayout);
                     document.getElementById("rounds").innerText = `start: ${roundStart}, end: ${roundEnd}`;
                 });
 
@@ -237,18 +239,16 @@
             async function getWalletBalance() {
                 const balance = await tonstakers.getBalance(10000);
                 document.getElementById("balance").innerText = balance / 1000000000;
+
+                const availableBalance = Tonstakers.getAvailableBalance(balance);
+                document.getElementById("availableBalance").innerText =
+                  availableBalance / 1000000000;
             }
 
             async function getStakedBalance() {
                 const stakedBalance = await tonstakers.getStakedBalance(10000);
                 document.getElementById("stakedBalance").innerText =
                     stakedBalance / 1000000000;
-            }
-
-            async function getAvailableBalance() {
-                const availableBalance = await tonstakers.getAvailableBalance(10000);
-                document.getElementById("availableBalance").innerText =
-                    availableBalance / 1000000000;
             }
 
             document

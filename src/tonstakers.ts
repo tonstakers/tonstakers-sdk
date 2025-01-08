@@ -89,25 +89,32 @@ class Tonstakers extends EventTarget {
     });
   }
 
-  private async getWithdrawalPayouts(): Promise<WithdrawalPayoutData | undefined> {
-    try {
-
-      const requestOptions: RequestInit = {
-        method: "GET",
-        redirect: "follow",
-      };
-
-      const response = await fetch("https://api.tonstakers.com/api/v1/pool/withdrawal_payout", requestOptions);
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      return result.data;
-    } catch (error) {
-      console.error('Error fetching withdrawal payouts:', error);
-      return undefined;
+  static getRoundTimestamps(
+    withdrawalPayoutData: WithdrawalPayoutData | undefined
+  ): [number, number] {
+    if (!withdrawalPayoutData) {
+      throw new Error("Withdrawal payout data is not available.");
     }
+
+    const collections: RoundInfo[] = withdrawalPayoutData.active_collections || [];
+    const msModify = 1000;
+
+    const activeRound = collections
+      .sort((a, b) => b.cycle_end - a.cycle_end)[0];
+
+    if (!activeRound) {
+      throw new Error("No active round found in the provided data.");
+    }
+
+    return [
+      activeRound.cycle_start * msModify,
+      activeRound.cycle_end * msModify,
+    ];
+  }
+
+  static getAvailableBalance(balance: number): number {
+    const availableBalance = balance - Number(toNano(CONTRACT.RECOMMENDED_FEE_RESERVE));
+    return Math.max(availableBalance, 0);
   }
 
   private async setupClient(): Promise<void> {
@@ -166,6 +173,27 @@ class Tonstakers extends EventTarget {
     this.dispatchEvent(new Event("initialized"));
   }
 
+  async getWithdrawalPayouts(): Promise<WithdrawalPayoutData | undefined> {
+    try {
+
+      const requestOptions: RequestInit = {
+        method: "GET",
+        redirect: "follow",
+      };
+
+      const response = await fetch("https://api.tonstakers.com/api/v1/pool/withdrawal_payout", requestOptions);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('Error fetching withdrawal payouts:', error);
+      return undefined;
+    }
+  }
+
   async fetchStakingPoolInfo(ttl?: number) {
     const getPoolInfo = async () => {
       const poolInfo = await this.client.staking.getStakingPoolInfo(
@@ -212,37 +240,6 @@ class Tonstakers extends EventTarget {
     } catch {
       console.error("Failed to get historical APY");
       throw new Error("Could not retrieve historical APY.");
-    }
-  }
-
-  async getRoundTimestamps(ttl?: number): Promise<[number, number]> {
-    if (!this.stakingContractAddress)
-      throw new Error("Staking contract address not set.");
-
-    try {
-      const response = await this.cache.get("withdrawalPayouts", () =>
-          this.getWithdrawalPayouts(),
-        ttl
-      );
-      const collections: RoundInfo[] = response?.active_collections || [];
-
-      const msModify = 1000;
-      const currentTime = Date.now() / msModify;
-
-      const activeRound = collections
-        .filter((round) => round.cycle_end < currentTime)
-        .sort((a, b) => b.cycle_end - a.cycle_end)[0];
-
-      if(!activeRound?.cycle_end){
-        const data = await this.fetchStakingPoolInfo();
-        const poolInfo = data.poolInfo;
-        return [poolInfo.cycle_start * msModify, poolInfo.cycle_end * msModify];
-      }
-
-      return [activeRound.cycle_start * msModify, activeRound.cycle_end * msModify];
-    } catch (error) {
-      console.error("Failed to get round timestamps:", error);
-      throw new Error("Could not retrieve round timestamps.");
     }
   }
 
@@ -368,21 +365,6 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getAvailableBalance(ttl?: number): Promise<number> {
-    const walletAddress = this.walletAddress;
-    if (!walletAddress) throw new Error("Wallet is not connected.");
-
-    try {
-      const balance = await this.getBalance(ttl)
-      const availableBalance =
-        balance - Number(toNano(CONTRACT.RECOMMENDED_FEE_RESERVE));
-
-      return Math.max(availableBalance, 0);
-    } catch {
-      return 0;
-    }
-  }
-
   async getInstantLiquidity(ttl?: number): Promise<number> {
     const account = await this.cache.get("contract-account", () =>
         this.client!.accounts.getAccount(
@@ -413,7 +395,8 @@ class Tonstakers extends EventTarget {
   }
 
   async stakeMax(): Promise<SendTransactionResponse> {
-    const availableBalance = await this.getAvailableBalance();
+    const balance = await this.getBalance();
+    const availableBalance = Tonstakers.getAvailableBalance(balance);
     const result = await this.stake(availableBalance);
     log(`Staked maximum amount of ${availableBalance} TON successfully.`);
     return result;
@@ -473,7 +456,7 @@ class Tonstakers extends EventTarget {
         throw new Error("Failed to get withdrawal payouts.");
       }
       const { active_collections } = withdrawalPayouts;
-      const [, endDate] = await this.getRoundTimestamps();
+      const [, endDate] = Tonstakers.getRoundTimestamps(withdrawalPayouts);
 
       const nftPromises = active_collections.map((collection) =>
         this.cache.get(

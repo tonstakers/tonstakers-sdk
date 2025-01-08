@@ -105,7 +105,7 @@ console.log(`Current staked balance: ${stakedBalance}`);
 const tonBalance = await tonstakers.getBalance();
 console.log(`Current user ton balance: ${tonBalance}`);
 
-const availableBalance = await tonstakers.getAvailableBalance();
+const availableBalance = Tonstakers.getAvailableBalance(tonBalance);
 console.log(`Available balance for staking: ${availableBalance}`);
 
 const currentApy = await tonstakers.getCurrentApy();
@@ -125,7 +125,8 @@ console.log(`1 TON = ${rates.TONUSD} USD`);
 console.log(`1 tsTON = ${rates.tsTONTON} TON`);
 console.log(`Projected 1 tsTON = ${rates.tsTONTONProjected} TON`);
 
-const [cycleStart, cycleEnd] = await tonstakers.getRoundTimestamps();
+const withdrawalPayoutData = await tonstakers.getWithdrawalPayouts();
+const [cycleStart, cycleEnd] = Tonstakers.getRoundTimestamps(withdrawalPayoutData);
 console.log(`Cycle start: ${cycleStart}, Cycle end: ${cycleEnd}`);
 
 const activeWithdrawals = await tonstakers.getActiveWithdrawalNFTs();

@@ -16,6 +16,12 @@ declare interface NftItemWithEstimates extends NftItem {
     tsTONAmount: number;
 }
 
+declare interface RoundInfo {
+    withdrawal_payout: string;
+    cycle_start: number;
+    cycle_end: number;
+}
+
 declare interface SendTransactionResponse {
     boc: string;
 }
@@ -32,7 +38,7 @@ export declare class Tonstakers extends EventTarget {
     ready: boolean;
     isTestnet: boolean;
     constructor({ connector, partnerCode, tonApiKey, cacheFor, }: TonstakersOptions);
-    private getWithdrawalPayouts;
+    getWithdrawalPayouts(): Promise<WithdrawalPayoutData | undefined>;
     private setupClient;
     private initialize;
     private deinitialize;
@@ -43,7 +49,7 @@ export declare class Tonstakers extends EventTarget {
     }>;
     getCurrentApy(ttl?: number): Promise<number>;
     getHistoricalApy(ttl?: number): Promise<ApyHistory[]>;
-    getRoundTimestamps(ttl?: number): Promise<[number, number]>;
+    static getRoundTimestamps(withdrawalPayoutData: WithdrawalPayoutData | undefined): [number, number];
     getTvl(ttl?: number): Promise<number>;
     getStakersCount(ttl?: number): Promise<number>;
     getRates(ttl?: number): Promise<any>;
@@ -52,8 +58,7 @@ export declare class Tonstakers extends EventTarget {
     private getTonPrice;
     getStakedBalance(ttl?: number): Promise<number>;
     getBalance(ttl?: number): Promise<number>;
-    getAvailableBalance(ttl?: number): Promise<number>;
-    getBalance(ttl?: number): Promise<number>;
+    static getAvailableBalance(balance: number): number;
     getInstantLiquidity(ttl?: number): Promise<number>;
     stake(amount: number): Promise<SendTransactionResponse>;
     stakeMax(): Promise<SendTransactionResponse>;
@@ -89,6 +94,10 @@ declare interface TransactionMessage {
 declare interface WalletAccount {
     address: string;
     chain: string;
+}
+
+declare interface WithdrawalPayoutData {
+    active_collections: RoundInfo[];
 }
 
 export { }
