@@ -38,18 +38,19 @@ export declare class Tonstakers extends EventTarget {
     ready: boolean;
     isTestnet: boolean;
     constructor({ connector, partnerCode, tonApiKey, cacheFor, }: TonstakersOptions);
-    getWithdrawalPayouts(): Promise<WithdrawalPayoutData | undefined>;
+    static getRoundTimestamps(withdrawalPayoutData: WithdrawalPayoutData | undefined): [number, number];
+    static getAvailableBalance(balance: number): number;
     private setupClient;
     private initialize;
     private deinitialize;
     private setupWallet;
+    getWithdrawalPayouts(): Promise<WithdrawalPayoutData | undefined>;
     fetchStakingPoolInfo(ttl?: number): Promise<{
         poolInfo: PoolInfo;
         poolFullData: any;
     }>;
     getCurrentApy(ttl?: number): Promise<number>;
     getHistoricalApy(ttl?: number): Promise<ApyHistory[]>;
-    static getRoundTimestamps(withdrawalPayoutData: WithdrawalPayoutData | undefined): [number, number];
     getTvl(ttl?: number): Promise<number>;
     getStakersCount(ttl?: number): Promise<number>;
     getRates(ttl?: number): Promise<any>;
@@ -58,7 +59,6 @@ export declare class Tonstakers extends EventTarget {
     private getTonPrice;
     getStakedBalance(ttl?: number): Promise<number>;
     getBalance(ttl?: number): Promise<number>;
-    static getAvailableBalance(balance: number): number;
     getInstantLiquidity(ttl?: number): Promise<number>;
     stake(amount: number): Promise<SendTransactionResponse>;
     stakeMax(): Promise<SendTransactionResponse>;
