@@ -43,7 +43,6 @@ export declare class Tonstakers extends EventTarget {
     }>;
     getCurrentApy(ttl?: number): Promise<number>;
     getHistoricalApy(ttl?: number): Promise<ApyHistory[]>;
-    getRoundTimestamps(ttl?: number): Promise<[number, number]>;
     getTvl(ttl?: number): Promise<number>;
     getStakersCount(ttl?: number): Promise<number>;
     getRates(ttl?: number): Promise<any>;
@@ -53,7 +52,6 @@ export declare class Tonstakers extends EventTarget {
     getStakedBalance(ttl?: number): Promise<number>;
     getBalance(ttl?: number): Promise<number>;
     getAvailableBalance(ttl?: number): Promise<number>;
-    getBalance(ttl?: number): Promise<number>;
     getInstantLiquidity(ttl?: number): Promise<number>;
     stake(amount: number): Promise<SendTransactionResponse>;
     stakeMax(): Promise<SendTransactionResponse>;

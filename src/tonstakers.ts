@@ -215,37 +215,6 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getRoundTimestamps(ttl?: number): Promise<[number, number]> {
-    if (!this.stakingContractAddress)
-      throw new Error("Staking contract address not set.");
-
-    try {
-      const response = await this.cache.get("withdrawalPayouts", () =>
-          this.getWithdrawalPayouts(),
-        ttl
-      );
-      const collections: RoundInfo[] = response?.active_collections || [];
-
-      const msModify = 1000;
-      const currentTime = Date.now() / msModify;
-
-      const activeRound = collections
-        .filter((round) => round.cycle_end < currentTime)
-        .sort((a, b) => b.cycle_end - a.cycle_end)[0];
-
-      if(!activeRound?.cycle_end){
-        const data = await this.fetchStakingPoolInfo();
-        const poolInfo = data.poolInfo;
-        return [poolInfo.cycle_start * msModify, poolInfo.cycle_end * msModify];
-      }
-
-      return [activeRound.cycle_start * msModify, activeRound.cycle_end * msModify];
-    } catch (error) {
-      console.error("Failed to get round timestamps:", error);
-      throw new Error("Could not retrieve round timestamps.");
-    }
-  }
-
   async getTvl(ttl?:number): Promise<number> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
@@ -473,12 +442,11 @@ class Tonstakers extends EventTarget {
         throw new Error("Failed to get withdrawal payouts.");
       }
       const { active_collections } = withdrawalPayouts;
-      const [, endDate] = await this.getRoundTimestamps();
 
       const nftPromises = active_collections.map((collection) =>
         this.cache.get(
           `withdrawals-${collection.withdrawal_payout}`,
-          () => this.getFilteredByAddressNFTs(collection.withdrawal_payout, endDate),
+          () => this.getFilteredByAddressNFTs(collection.withdrawal_payout, collection.cycle_end * 1000),
           ttl
         )
       );
