@@ -446,7 +446,7 @@ class Tonstakers extends EventTarget {
       const nftPromises = active_collections.map((collection) =>
         this.cache.get(
           `withdrawals-${collection.withdrawal_payout}`,
-          () => this.getFilteredByAddressNFTs(collection.withdrawal_payout, withdrawalPayouts.active_collections[0].cycle_end * 1000),
+          () => this.getFilteredByAddressNFTs(collection.withdrawal_payout, collection.cycle_end * 1000),
           ttl
         )
       );
