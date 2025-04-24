@@ -365,13 +365,15 @@ class Tonstakers extends EventTarget {
     return account.balance;
   }
 
-  async stake(amount: number): Promise<SendTransactionResponse> {
+  async stake(amount: string | number): Promise<SendTransactionResponse> {
     if (!this.walletAddress || !Tonstakers.jettonWalletAddress)
       throw new Error("Tonstakers is not fully initialized.");
 
     await this.validateAmount(amount);
-    const totalAmount = toNano(amount + CONTRACT.STAKE_FEE_RES); // Includes transaction fee
-    const payload = this.preparePayload("stake", amount);
+
+    const feeRes = toNano(CONTRACT.STAKE_FEE_RES)
+    const totalAmount = toNano(amount) + feeRes; // Includes transaction fee
+    const payload = this.preparePayload("stake", totalAmount);
     const result = await this.sendTransaction(
       this.stakingContractAddress!,
       totalAmount,
@@ -383,16 +385,16 @@ class Tonstakers extends EventTarget {
 
   async stakeMax(): Promise<SendTransactionResponse> {
     const availableBalance = await this.getAvailableBalance();
-    const result = await this.stake(availableBalance);
+    const result = await this.stake(String(availableBalance));
     log(`Staked maximum amount of ${availableBalance} TON successfully.`);
     return result;
   }
 
-  async unstake(amount: number): Promise<SendTransactionResponse> {
+  async unstake(amount: number | string): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
     await this.validateAmount(amount);
-    const payload = this.preparePayload("unstake", amount);
+    const payload = this.preparePayload("unstake", toNano(amount));
     const result = await this.sendTransaction(
       Tonstakers.jettonWalletAddress,
       toNano(CONTRACT.UNSTAKE_FEE_RES),
@@ -402,11 +404,11 @@ class Tonstakers extends EventTarget {
     return result;
   }
 
-  async unstakeInstant(amount: number): Promise<SendTransactionResponse> {
+  async unstakeInstant(amount: number | string): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
     await this.validateAmount(amount);
-    const payload = this.preparePayload("unstake", amount, false, true);
+    const payload = this.preparePayload("unstake", toNano(amount), false, true);
     const result = await this.sendTransaction(
       Tonstakers.jettonWalletAddress,
       toNano(CONTRACT.UNSTAKE_FEE_RES),
@@ -420,7 +422,7 @@ class Tonstakers extends EventTarget {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
     await this.validateAmount(amount);
-    const payload = this.preparePayload("unstake", amount, true);
+    const payload = this.preparePayload("unstake", toNano(amount), true);
     const result = await this.sendTransaction(
       Tonstakers.jettonWalletAddress,
       toNano(CONTRACT.UNSTAKE_FEE_RES),
@@ -493,7 +495,7 @@ class Tonstakers extends EventTarget {
 
   private preparePayload(
     operation: "stake" | "unstake",
-    amount: number,
+    amount: bigint,
     waitTillRoundEnd: boolean = false,
     fillOrKill: boolean = false,
   ): string {
@@ -508,7 +510,7 @@ class Tonstakers extends EventTarget {
         cell.storeUint(CONTRACT.PAYLOAD_UNSTAKE, 32);
         cell
           .storeUint(0, 64)
-          .storeCoins(toNano(amount))
+          .storeCoins(amount)
           .storeAddress(this.walletAddress!)
           .storeMaybeRef(
             beginCell()
@@ -546,8 +548,8 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  private async validateAmount(amount: number): Promise<void> {
-    if (typeof amount !== "number" || amount <= 0) {
+  private async validateAmount(amount: number | string): Promise<void> {
+    if ((typeof amount !== "number" || amount <= 0) && typeof amount !== "string") {
       throw new Error("Invalid amount specified");
     }
   }
