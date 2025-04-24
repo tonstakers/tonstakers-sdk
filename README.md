@@ -89,11 +89,11 @@ tonstakers.addEventListener("deinitialized", () => {
 Stake and unstake with new methods:
 
 ```javascript
-await tonstakers.stake(String(1)); // Stake 1 TON
-await tonstakers.unstake(String(1)); // Unstake 1 tsTON
+await tonstakers.stake(BigInt(1)); // Stake 1 TON
+await tonstakers.unstake(BigInt(1)); // Unstake 1 tsTON
 await tonstakers.stakeMax(); // Stake the maximum available balance
-await tonstakers.unstakeInstant(String(1)); // Instant unstake 1 tsTON
-await tonstakers.unstakeBestRate(String(1)); // Unstake 1 tsTON at the best available rate
+await tonstakers.unstakeInstant(BigInt(1)); // Instant unstake 1 tsTON
+await tonstakers.unstakeBestRate(BigInt(1)); // Unstake 1 tsTON at the best available rate
 ```
 
 Retrieve information:

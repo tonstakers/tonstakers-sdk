@@ -365,7 +365,7 @@ class Tonstakers extends EventTarget {
     return account.balance;
   }
 
-  async stake(amount: string): Promise<SendTransactionResponse> {
+  async stake(amount: bigint): Promise<SendTransactionResponse> {
     if (!this.walletAddress || !Tonstakers.jettonWalletAddress)
       throw new Error("Tonstakers is not fully initialized.");
 
@@ -383,12 +383,12 @@ class Tonstakers extends EventTarget {
 
   async stakeMax(): Promise<SendTransactionResponse> {
     const availableBalance = await this.getAvailableBalance();
-    const result = await this.stake(String(availableBalance));
+    const result = await this.stake(BigInt(availableBalance));
     log(`Staked maximum amount of ${availableBalance} TON successfully.`);
     return result;
   }
 
-  async unstake(amount: string): Promise<SendTransactionResponse> {
+  async unstake(amount: bigint): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
 
@@ -402,7 +402,7 @@ class Tonstakers extends EventTarget {
     return result;
   }
 
-  async unstakeInstant(amount: string): Promise<SendTransactionResponse> {
+  async unstakeInstant(amount: bigint): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
 
@@ -416,10 +416,10 @@ class Tonstakers extends EventTarget {
     return result;
   }
 
-  async unstakeBestRate(amount: string): Promise<SendTransactionResponse> {
+  async unstakeBestRate(amount: bigint): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
-    
+
     const payload = this.preparePayload("unstake", toNano(amount), true);
     const result = await this.sendTransaction(
       Tonstakers.jettonWalletAddress,
