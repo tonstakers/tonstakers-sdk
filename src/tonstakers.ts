@@ -1,4 +1,4 @@
-import { Address, beginCell, toNano } from "@ton/core";
+import { Address, beginCell, fromNano, toNano } from "@ton/core";
 import { Api, ApyHistory, HttpClient, NftItem } from "tonapi-sdk-js";
 import { BLOCKCHAIN, CONTRACT, TIMING } from "./constants";
 import { NetworkCache } from "./cache";
@@ -370,20 +370,20 @@ class Tonstakers extends EventTarget {
       throw new Error("Tonstakers is not fully initialized.");
 
     const feeRes = toNano(CONTRACT.STAKE_FEE_RES)
-    const totalAmount = toNano(amount) + feeRes; // Includes transaction fee
+    const totalAmount = amount + feeRes; // Includes transaction fee
     const payload = this.preparePayload("stake", totalAmount);
     const result = await this.sendTransaction(
       this.stakingContractAddress!,
       totalAmount,
       payload,
     );
-    log(`Staked ${amount} TON successfully.`);
+    log(`Staked ${fromNano(amount)} TON successfully.`);
     return result;
   }
 
   async stakeMax(): Promise<SendTransactionResponse> {
     const availableBalance = await this.getAvailableBalance();
-    const result = await this.stake(BigInt(availableBalance));
+    const result = await this.stake(toNano(availableBalance));
     log(`Staked maximum amount of ${availableBalance} TON successfully.`);
     return result;
   }
@@ -392,13 +392,13 @@ class Tonstakers extends EventTarget {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
 
-    const payload = this.preparePayload("unstake", toNano(amount));
+    const payload = this.preparePayload("unstake", amount);
     const result = await this.sendTransaction(
       Tonstakers.jettonWalletAddress,
       toNano(CONTRACT.UNSTAKE_FEE_RES),
       payload,
     ); // Includes transaction fee
-    log(`Initiated unstaking of ${amount} tsTON.`);
+    log(`Initiated unstaking of ${fromNano(amount)} tsTON.`);
     return result;
   }
 
@@ -406,13 +406,13 @@ class Tonstakers extends EventTarget {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
 
-    const payload = this.preparePayload("unstake", toNano(amount), false, true);
+    const payload = this.preparePayload("unstake", amount, false, true);
     const result = await this.sendTransaction(
       Tonstakers.jettonWalletAddress,
       toNano(CONTRACT.UNSTAKE_FEE_RES),
       payload,
     ); // Includes transaction fee
-    log(`Initiated instant unstaking of ${amount} tsTON.`);
+    log(`Initiated instant unstaking of ${fromNano(amount)} tsTON.`);
     return result;
   }
 
@@ -420,13 +420,13 @@ class Tonstakers extends EventTarget {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
 
-    const payload = this.preparePayload("unstake", toNano(amount), true);
+    const payload = this.preparePayload("unstake", amount, true);
     const result = await this.sendTransaction(
       Tonstakers.jettonWalletAddress,
       toNano(CONTRACT.UNSTAKE_FEE_RES),
       payload,
     ); // Includes transaction fee
-    log(`Initiated unstaking of ${amount} tsTON at the best rate.`);
+    log(`Initiated unstaking of ${fromNano(amount)} tsTON at the best rate.`);
     return result;
   }
 
