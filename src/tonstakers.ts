@@ -365,11 +365,9 @@ class Tonstakers extends EventTarget {
     return account.balance;
   }
 
-  async stake(amount: string | number): Promise<SendTransactionResponse> {
+  async stake(amount: string): Promise<SendTransactionResponse> {
     if (!this.walletAddress || !Tonstakers.jettonWalletAddress)
       throw new Error("Tonstakers is not fully initialized.");
-
-    await this.validateAmount(amount);
 
     const feeRes = toNano(CONTRACT.STAKE_FEE_RES)
     const totalAmount = toNano(amount) + feeRes; // Includes transaction fee
@@ -390,10 +388,10 @@ class Tonstakers extends EventTarget {
     return result;
   }
 
-  async unstake(amount: number | string): Promise<SendTransactionResponse> {
+  async unstake(amount: string): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
-    await this.validateAmount(amount);
+
     const payload = this.preparePayload("unstake", toNano(amount));
     const result = await this.sendTransaction(
       Tonstakers.jettonWalletAddress,
@@ -404,10 +402,10 @@ class Tonstakers extends EventTarget {
     return result;
   }
 
-  async unstakeInstant(amount: number | string): Promise<SendTransactionResponse> {
+  async unstakeInstant(amount: string): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
-    await this.validateAmount(amount);
+
     const payload = this.preparePayload("unstake", toNano(amount), false, true);
     const result = await this.sendTransaction(
       Tonstakers.jettonWalletAddress,
@@ -418,10 +416,10 @@ class Tonstakers extends EventTarget {
     return result;
   }
 
-  async unstakeBestRate(amount: number): Promise<SendTransactionResponse> {
+  async unstakeBestRate(amount: string): Promise<SendTransactionResponse> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
-    await this.validateAmount(amount);
+    
     const payload = this.preparePayload("unstake", toNano(amount), true);
     const result = await this.sendTransaction(
       Tonstakers.jettonWalletAddress,
@@ -545,12 +543,6 @@ class Tonstakers extends EventTarget {
         error instanceof Error ? error.message : error,
       );
       throw new Error("Could not retrieve jetton wallet address.");
-    }
-  }
-
-  private async validateAmount(amount: number | string): Promise<void> {
-    if ((typeof amount !== "number" || amount <= 0) && typeof amount !== "string") {
-      throw new Error("Invalid amount specified");
     }
   }
 

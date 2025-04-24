@@ -94,8 +94,6 @@ await tonstakers.unstake(String(1)); // Unstake 1 tsTON
 await tonstakers.stakeMax(); // Stake the maximum available balance
 await tonstakers.unstakeInstant(String(1)); // Instant unstake 1 tsTON
 await tonstakers.unstakeBestRate(String(1)); // Unstake 1 tsTON at the best available rate
-
-// We still support number type, but it can cause mistakes with the big values.
 ```
 
 Retrieve information:
