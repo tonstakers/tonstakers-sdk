@@ -129,7 +129,7 @@
                 .getElementById("stake")
                 .addEventListener("click", async () => {
                     if (tonstakers) {
-                        await tonstakers.stake(1); // Example stake amount
+                        await tonstakers.stake(1000000000n); // Example stake amount
                         console.log("Staked 1 TON");
                     } else {
                         console.error("Wallet not connected");
@@ -151,7 +151,7 @@
                 .getElementById("unstake")
                 .addEventListener("click", async () => {
                     if (tonstakers) {
-                        await tonstakers.unstake(1); // Example unstake amount
+                        await tonstakers.unstake(1000000000n); // Example unstake amount
                         console.log("Unstaked 1 tsTON");
                     } else {
                         console.error("Wallet not connected");
@@ -162,7 +162,7 @@
                 .getElementById("unstakeInstant")
                 .addEventListener("click", async () => {
                     if (tonstakers) {
-                        await tonstakers.unstakeInstant(1); // Example unstake amount
+                        await tonstakers.unstakeInstant(1000000000n); // Example unstake amount
                         console.log("Unstaked 1 tsTON Instant");
                     } else {
                         console.error("Wallet not connected");
@@ -173,7 +173,7 @@
                 .getElementById("unstakeBestRate")
                 .addEventListener("click", async () => {
                     if (tonstakers) {
-                        await tonstakers.unstakeBestRate(1); // Example unstake amount
+                        await tonstakers.unstakeBestRate(1000000000n); // Example unstake amount
                         console.log("Unstaked 1 tsTON Best Rate");
                     } else {
                         console.error("Wallet not connected");
