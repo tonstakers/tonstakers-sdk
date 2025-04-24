@@ -53,11 +53,11 @@ export declare class Tonstakers extends EventTarget {
     getBalance(ttl?: number): Promise<number>;
     getAvailableBalance(ttl?: number): Promise<number>;
     getInstantLiquidity(ttl?: number): Promise<number>;
-    stake(amount: string): Promise<SendTransactionResponse>;
+    stake(amount: bigint): Promise<SendTransactionResponse>;
     stakeMax(): Promise<SendTransactionResponse>;
-    unstake(amount: string): Promise<SendTransactionResponse>;
-    unstakeInstant(amount: string): Promise<SendTransactionResponse>;
-    unstakeBestRate(amount: string): Promise<SendTransactionResponse>;
+    unstake(amount: bigint): Promise<SendTransactionResponse>;
+    unstakeInstant(amount: bigint): Promise<SendTransactionResponse>;
+    unstakeBestRate(amount: bigint): Promise<SendTransactionResponse>;
     getActiveWithdrawalNFTs(ttl?: number): Promise<NftItemWithEstimates[]>;
     private getFilteredByAddressNFTs;
     private preparePayload;
