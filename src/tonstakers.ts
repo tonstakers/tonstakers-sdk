@@ -556,7 +556,10 @@ class Tonstakers extends EventTarget {
       validUntil,
       messages: [
         {
-          address: address.toString(),
+          address: address.toString({
+            urlSafe: true,
+            bounceable: true,
+          }),
           amount: amount.toString(),
           payload,
         },
