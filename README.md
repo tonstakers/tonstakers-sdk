@@ -135,13 +135,6 @@ const instantLiquidity = await tonstakers.getInstantLiquidity();
 console.log(`Instant liquidity: ${instantLiquidity}`);
 ```
 
-Clear storage data:
-
-```javascript
-await tonstakers.clearStorageData(); // Clear all cached data
-await tonstakers.clearStorageUserData(); // Clear cached user-specific data
-```
-
 ## Demo
 
 A demo HTML page is included with the SDK to demonstrate integration into web applications, showcasing wallet connection, staking/unstaking operations, and balance updates.
