@@ -1,7 +1,6 @@
 import { Address, beginCell, fromNano, toNano } from "@ton/core";
 import { Api, ApyHistory, HttpClient, NftItem } from "tonapi-sdk-js";
 import { BLOCKCHAIN, CONTRACT, TIMING } from "./constants";
-import { NetworkCache } from "./cache";
 import { log } from "./utils";
 
 interface SendTransactionResponse {
@@ -36,7 +35,6 @@ interface TonstakersOptions {
   connector: IWalletConnector;
   partnerCode?: number;
   tonApiKey?: string;
-  cacheFor?: number;
 }
 
 interface NftItemWithEstimates extends NftItem {
@@ -63,7 +61,6 @@ class Tonstakers extends EventTarget {
   private partnerCode: number;
   private static jettonWalletAddress?: Address;
   private tonApiKey?: string;
-  private cache: NetworkCache;
   public ready: boolean;
   public isTestnet: boolean;
 
@@ -71,15 +68,11 @@ class Tonstakers extends EventTarget {
                 connector,
                 partnerCode = CONTRACT.PARTNER_CODE,
                 tonApiKey,
-                cacheFor,
               }: TonstakersOptions) {
     super();
     this.connector = connector;
     this.partnerCode = partnerCode;
     this.tonApiKey = tonApiKey;
-    this.cache = new NetworkCache(
-      cacheFor === undefined ? TIMING.CACHE_TIMEOUT : cacheFor,
-    );
     this.ready = false;
     this.isTestnet = false;
 
@@ -183,7 +176,7 @@ class Tonstakers extends EventTarget {
       };
     };
 
-    return this.cache.get("poolInfo", getPoolInfo, ttl);
+    return await getPoolInfo();
   }
 
   async getCurrentApy(ttl? :number): Promise<number> {
@@ -198,16 +191,13 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getHistoricalApy(ttl?: number): Promise<ApyHistory[]> {
+  async getHistoricalApy(): Promise<ApyHistory[]> {
     const stakingAddress = this.stakingContractAddress;
 
     if (!stakingAddress) throw new Error("Staking contract address not set.");
 
     try {
-      const stakingHistory = await this.cache.get("stakingHistory", () =>
-          this.client!.staking.getStakingPoolHistory(stakingAddress.toString()),
-        ttl
-      );
+      const stakingHistory = await this.client!.staking.getStakingPoolHistory(stakingAddress.toString())
       return stakingHistory.apy;
     } catch {
       console.error("Failed to get historical APY");
@@ -239,11 +229,11 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getRates(ttl?:number): Promise<any> {
+  async getRates(): Promise<any> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      const poolData = await this.fetchStakingPoolInfo(ttl);
+      const poolData = await this.fetchStakingPoolInfo();
 
       const poolBalance = poolData.poolFullData.total_balance;
       const poolSupply = poolData.poolFullData.supply;
@@ -253,7 +243,7 @@ class Tonstakers extends EventTarget {
       const poolProjectedSupply = poolData.poolFullData.projected_supply;
       const tsTONTONProjected = poolProjectedBalance / poolProjectedSupply;
 
-      const TONUSD = await this.getTonPrice(ttl);
+      const TONUSD = await this.getTonPrice();
       return {
         TONUSD,
         tsTONTON,
@@ -265,28 +255,12 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async clearStorageData(): Promise<void> {
-    this.cache.clear();
-  }
-
-  async clearStorageUserData(): Promise<void> {
-    this.cache.clear([
-      'network-cache-withdrawals',
-      'network-cache-stakedBalance',
-      'network-cache-account'
-    ]);
-  }
-
-  private async getTonPrice(ttl?: number): Promise<number> {
+  private async getTonPrice(): Promise<number> {
     try {
-      const response = await this.cache.get("tonPrice", () =>
-          this.client!.rates.getRates({
-            tokens: ["ton"],
-            currencies: ["usd"],
-          }),
-        ttl
-      );
-
+      const response = await this.client!.rates.getRates({
+        tokens: ["ton"],
+        currencies: ["usd"],
+      });
       const tonPrice = response.rates?.TON?.prices?.USD;
 
       return tonPrice || 0;
@@ -295,21 +269,16 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getStakedBalance(ttl?: number): Promise<number> {
+  async getStakedBalance(): Promise<number> {
     if (!Tonstakers.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
 
     const addressString = Tonstakers.jettonWalletAddress.toString();
 
     try {
-      const jettonWalletData = await this.cache.get(
-        `stakedBalance-${addressString}`,
-        () =>
-          this.client!.blockchain.execGetMethodForBlockchainAccount(
-            addressString,
-            "get_wallet_data",
-          ),
-        ttl
+      const jettonWalletData = await this.client!.blockchain.execGetMethodForBlockchainAccount(
+        addressString,
+        "get_wallet_data",
       );
 
       const formattedBalance = jettonWalletData.decoded.balance;
@@ -321,28 +290,24 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getBalance(ttl?: number): Promise<number> {
+  async getBalance(): Promise<number> {
     const walletAddress = this.walletAddress;
     if (!walletAddress) throw new Error("Wallet is not connected.");
 
     try {
-      const account = await this.cache.get("account", () =>
-          this.client!.accounts.getAccount(walletAddress.toString()),
-        ttl
-      );
-
+      const account = await this.client!.accounts.getAccount(walletAddress.toString());
       return Math.max(Number(account.balance), 0);
     } catch {
       return 0;
     }
   }
 
-  async getAvailableBalance(ttl?: number): Promise<number> {
+  async getAvailableBalance(): Promise<number> {
     const walletAddress = this.walletAddress;
     if (!walletAddress) throw new Error("Wallet is not connected.");
 
     try {
-      const balance = await this.getBalance(ttl)
+      const balance = await this.getBalance()
       const availableBalance =
         balance - Number(toNano(CONTRACT.RECOMMENDED_FEE_RESERVE));
 
@@ -352,14 +317,11 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getInstantLiquidity(ttl?: number): Promise<number> {
-    const account = await this.cache.get("contract-account", () =>
-        this.client!.accounts.getAccount(
-          this.isTestnet
-            ? CONTRACT.STAKING_CONTRACT_ADDRESS_TESTNET
-            : CONTRACT.STAKING_CONTRACT_ADDRESS,
-        ),
-      ttl
+  async getInstantLiquidity(): Promise<number> {
+    const account = await this.client!.accounts.getAccount(
+      this.isTestnet
+        ? CONTRACT.STAKING_CONTRACT_ADDRESS_TESTNET
+        : CONTRACT.STAKING_CONTRACT_ADDRESS,
     );
 
     return account.balance;
@@ -430,25 +392,17 @@ class Tonstakers extends EventTarget {
     return result;
   }
 
-  async getActiveWithdrawalNFTs(ttl?: number): Promise<NftItemWithEstimates[]> {
+  async getActiveWithdrawalNFTs(): Promise<NftItemWithEstimates[]> {
     try {
-      const withdrawalPayouts = await this.cache.get(
-        "withdrawalPayouts",
-        () =>
-          this.getWithdrawalPayouts(),
-        ttl
-      );
+      const withdrawalPayouts = await this.getWithdrawalPayouts();
+
       if (!withdrawalPayouts) {
         throw new Error("Failed to get withdrawal payouts.");
       }
       const { active_collections } = withdrawalPayouts;
 
       const nftPromises = active_collections.map((collection) =>
-        this.cache.get(
-          `withdrawals-${collection.withdrawal_payout}`,
-          () => this.getFilteredByAddressNFTs(collection.withdrawal_payout, collection.cycle_end * 1000),
-          ttl
-        )
+        this.getFilteredByAddressNFTs(collection.withdrawal_payout, collection.cycle_end * 1000)
       );
 
       const nftResults = await Promise.all(nftPromises);

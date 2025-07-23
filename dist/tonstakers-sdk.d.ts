@@ -28,10 +28,9 @@ export declare class Tonstakers extends EventTarget {
     private partnerCode;
     private static jettonWalletAddress?;
     private tonApiKey?;
-    private cache;
     ready: boolean;
     isTestnet: boolean;
-    constructor({ connector, partnerCode, tonApiKey, cacheFor, }: TonstakersOptions);
+    constructor({ connector, partnerCode, tonApiKey, }: TonstakersOptions);
     private getWithdrawalPayouts;
     private setupClient;
     private initialize;
@@ -42,23 +41,21 @@ export declare class Tonstakers extends EventTarget {
         poolFullData: any;
     }>;
     getCurrentApy(ttl?: number): Promise<number>;
-    getHistoricalApy(ttl?: number): Promise<ApyHistory[]>;
+    getHistoricalApy(): Promise<ApyHistory[]>;
     getTvl(ttl?: number): Promise<number>;
     getStakersCount(ttl?: number): Promise<number>;
-    getRates(ttl?: number): Promise<any>;
-    clearStorageData(): Promise<void>;
-    clearStorageUserData(): Promise<void>;
+    getRates(): Promise<any>;
     private getTonPrice;
-    getStakedBalance(ttl?: number): Promise<number>;
-    getBalance(ttl?: number): Promise<number>;
-    getAvailableBalance(ttl?: number): Promise<number>;
-    getInstantLiquidity(ttl?: number): Promise<number>;
+    getStakedBalance(): Promise<number>;
+    getBalance(): Promise<number>;
+    getAvailableBalance(): Promise<number>;
+    getInstantLiquidity(): Promise<number>;
     stake(amount: bigint): Promise<SendTransactionResponse>;
     stakeMax(): Promise<SendTransactionResponse>;
     unstake(amount: bigint): Promise<SendTransactionResponse>;
     unstakeInstant(amount: bigint): Promise<SendTransactionResponse>;
     unstakeBestRate(amount: bigint): Promise<SendTransactionResponse>;
-    getActiveWithdrawalNFTs(ttl?: number): Promise<NftItemWithEstimates[]>;
+    getActiveWithdrawalNFTs(): Promise<NftItemWithEstimates[]>;
     private getFilteredByAddressNFTs;
     private preparePayload;
     private getJettonWalletAddress;
@@ -69,7 +66,6 @@ declare interface TonstakersOptions {
     connector: IWalletConnector;
     partnerCode?: number;
     tonApiKey?: string;
-    cacheFor?: number;
 }
 
 declare interface TransactionDetails {
