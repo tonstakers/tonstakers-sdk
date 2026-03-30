@@ -36,14 +36,14 @@ export declare class Tonstakers extends EventTarget {
     private initialize;
     private deinitialize;
     private setupWallet;
-    fetchStakingPoolInfo(ttl?: number): Promise<{
+    fetchStakingPoolInfo(): Promise<{
         poolInfo: PoolInfo;
         poolFullData: any;
     }>;
-    getCurrentApy(ttl?: number): Promise<number>;
+    getCurrentApy(): Promise<number>;
     getHistoricalApy(): Promise<ApyHistory[]>;
-    getTvl(ttl?: number): Promise<number>;
-    getStakersCount(ttl?: number): Promise<number>;
+    getTvl(): Promise<number>;
+    getStakersCount(): Promise<number>;
     getRates(): Promise<any>;
     private getTonPrice;
     getStakedBalance(): Promise<number>;

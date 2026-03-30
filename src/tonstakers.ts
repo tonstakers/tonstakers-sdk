@@ -145,9 +145,12 @@ class Tonstakers extends EventTarget {
 
     this.isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
 
-    this.walletAddress = Address.parse(wallet.account.address);
+    const newAddress = Address.parse(wallet.account.address);
+    const walletChanged = !this.walletAddress || !newAddress.equals(this.walletAddress);
 
-    if (!Tonstakers.jettonWalletAddress) {
+    this.walletAddress = newAddress;
+
+    if (walletChanged || !Tonstakers.jettonWalletAddress) {
       Tonstakers.jettonWalletAddress = await this.getJettonWalletAddress(
         this.walletAddress,
       );
@@ -159,7 +162,7 @@ class Tonstakers extends EventTarget {
     this.dispatchEvent(new Event("initialized"));
   }
 
-  async fetchStakingPoolInfo(ttl?: number) {
+  async fetchStakingPoolInfo() {
     const getPoolInfo = async () => {
       const poolInfo = await this.client.staking.getStakingPoolInfo(
         this.stakingContractAddress!.toString(),
@@ -179,11 +182,11 @@ class Tonstakers extends EventTarget {
     return await getPoolInfo();
   }
 
-  async getCurrentApy(ttl? :number): Promise<number> {
+  async getCurrentApy(): Promise<number> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      const response = await this.fetchStakingPoolInfo(ttl);
+      const response = await this.fetchStakingPoolInfo();
       return response.poolInfo.apy;
     } catch {
       console.error("Failed to get current APY");
@@ -205,11 +208,11 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getTvl(ttl?:number): Promise<number> {
+  async getTvl(): Promise<number> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      const response = await this.fetchStakingPoolInfo(ttl);
+      const response = await this.fetchStakingPoolInfo();
       return response.poolInfo.total_amount;
     } catch {
       console.error("Failed to get TVL");
@@ -217,11 +220,11 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  async getStakersCount(ttl?:number): Promise<number> {
+  async getStakersCount(): Promise<number> {
     if (!this.stakingContractAddress)
       throw new Error("Staking contract address not set.");
     try {
-      const response = await this.fetchStakingPoolInfo(ttl);
+      const response = await this.fetchStakingPoolInfo();
       return response.poolInfo.current_nominators;
     } catch {
       console.error("Failed to get stakers count");
@@ -432,7 +435,7 @@ class Tonstakers extends EventTarget {
             ...item,
             estimatedPayoutDateTime: estimatedPayoutTimeInSeconds,
             roundEndTime: endDateInSeconds,
-            tsTONAmount: Number(item.metadata.name?.match(/[\d.]+/)[0]) || 0
+            tsTONAmount: Number(item.metadata.name?.match(/[\d.]+/)?.[0]) || 0
           });
         }
         itemsBeforeCount++;
