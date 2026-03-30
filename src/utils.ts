@@ -1,4 +1,8 @@
 const checkDev = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
   const location = window.location;
 
   if (!location) {

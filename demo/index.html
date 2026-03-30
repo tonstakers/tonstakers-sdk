@@ -21,7 +21,6 @@
         <button id="unstakeInstant">Unstake 1 tsTON Instant</button>
         <button id="unstakeBestRate">Unstake 1 tsTON Best Rate</button>
         <button id="refreshBalances">Refresh Balances</button>
-        <button id="getRounds">Get Rounds info</button>
         <button id="getWithdrawals">Get Withdrawal List</button>
         <button id="getPoolData">Get Pool Data</button>
         <br /><br />
@@ -38,7 +37,6 @@
         <div id="apyDisplay">APY: <span id="apy"></span></div>
         <div id="tvlDisplay">TVL: <span id="tvl"></span></div>
         <div id="stakersDisplay">Stakers: <span id="stakers"></span></div>
-        <div id="roundsDisplay">Rounds: <span id="rounds"></span></div>
         <div id="TONUSDRateDisplay">1 TON = <span id="TONUSD">0</span>$</div>
         <div id="TONtsTONRateDisplay">
             1 tsTON = <span id="tsTONTON">0</span> TON
@@ -63,19 +61,16 @@
             // Fetch and display APY, TVL, and Stakers count on page load
             window.addEventListener("DOMContentLoaded", async () => {
                 try {
-                    const apy = await tonstakers.getCurrentApy(600000);
+                    const apy = await tonstakers.getCurrentApy();
                     document.getElementById("apy").innerText = apy;
 
-                    const tvl = await tonstakers.getTvl(600000);
+                    const tvl = await tonstakers.getTvl();
                     document.getElementById("tvl").innerText = tvl / 1000000000;
 
-                    const stakers = await tonstakers.getStakersCount(600000);
+                    const stakers = await tonstakers.getStakersCount();
                     document.getElementById("stakers").innerText = stakers;
 
-                    const [roundStart, roundEnd] = await tonstakers.getRoundTimestamps(5000);
-                    document.getElementById("rounds").innerText = `start ${roundStart}, end ${roundEnd}`;
-
-                    const rates = await tonstakers.getRates(600000);
+                    const rates = await tonstakers.getRates();
                     document.getElementById("TONUSD").innerText = rates.TONUSD;
                     document.getElementById("tsTONTON").innerText =
                         rates.tsTONTON;
@@ -113,7 +108,6 @@
             document
                 .getElementById("disconnectWallet")
                 .addEventListener("click", async () => {
-                    await tonstakers.clearStorageUserData()
                     await tonConnectUI.disconnect();
                     document.getElementById("connectWallet").style.display =
                         "inline";
@@ -183,18 +177,10 @@
             document
                 .getElementById("getPoolData")
                 .addEventListener("click", async () => {
-                    const poolData = await tonstakers.fetchStakingPoolInfo(5000);
+                    const poolData = await tonstakers.fetchStakingPoolInfo();
                     document.getElementById("poolDataDisplay").innerText =
                         JSON.stringify(poolData, null, 2);
                 });
-
-            document
-                .getElementById("getRounds")
-                .addEventListener("click", async () => {
-                    const [roundStart, roundEnd] = await tonstakers.getRoundTimestamps(5000);
-                    document.getElementById("rounds").innerText = `start: ${roundStart}, end: ${roundEnd}`;
-                });
-
 
             document
                 .getElementById("getWithdrawals")
@@ -203,7 +189,7 @@
                     const activeWithdrawalsDiv = document.getElementById("activeWithdrawals");
                     activeWithdrawalsDiv.innerHTML = "";
 
-                    const activeWithdrawals = await tonstakers.getActiveWithdrawalNFTs(10000);
+                    const activeWithdrawals = await tonstakers.getActiveWithdrawalNFTs();
                     if(!activeWithdrawals.length) {
                         activeWithdrawalsDiv.innerText = 'you have no active withdrawals'
                         return
@@ -235,18 +221,18 @@
                 });
 
             async function getWalletBalance() {
-                const balance = await tonstakers.getBalance(10000);
+                const balance = await tonstakers.getBalance();
                 document.getElementById("balance").innerText = balance / 1000000000;
             }
 
             async function getStakedBalance() {
-                const stakedBalance = await tonstakers.getStakedBalance(10000);
+                const stakedBalance = await tonstakers.getStakedBalance();
                 document.getElementById("stakedBalance").innerText =
                     stakedBalance / 1000000000;
             }
 
             async function getAvailableBalance() {
-                const availableBalance = await tonstakers.getAvailableBalance(10000);
+                const availableBalance = await tonstakers.getAvailableBalance();
                 document.getElementById("availableBalance").innerText =
                     availableBalance / 1000000000;
             }
