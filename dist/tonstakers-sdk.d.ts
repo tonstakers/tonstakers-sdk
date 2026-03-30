@@ -3,11 +3,8 @@ import { NftItem } from 'tonapi-sdk-js';
 import { PoolInfo } from 'tonapi-sdk-js';
 
 declare interface IWalletConnector {
-    wallet: {
-        account?: WalletAccount;
-    };
     sendTransaction: (transactionDetails: TransactionDetails) => Promise<SendTransactionResponse>;
-    onStatusChange: (callback: (wallet: any) => void) => void;
+    onStatusChange: (callback: (wallet: any) => void) => void | (() => void);
 }
 
 declare interface NftItemWithEstimates extends NftItem {
@@ -77,11 +74,6 @@ declare interface TransactionMessage {
     address: string;
     amount: string;
     payload: string;
-}
-
-declare interface WalletAccount {
-    address: string;
-    chain: string;
 }
 
 export { }

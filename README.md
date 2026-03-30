@@ -42,7 +42,7 @@ Replace `"path/to/tonstakers-sdk.min.js"` with the actual SDK path.
 Initialize the SDK with your wallet connector (usually a TonConnect instance) and optional parameters:
 
 ```typescript
-import { Tonstakers } from "tonstakers-sdk";
+import { Tonstakers, IWalletConnector } from "tonstakers-sdk";
 import { TonConnectUI } from "@tonconnect/ui";
 
 const tonConnectUI = new TonConnectUI({
@@ -50,7 +50,6 @@ const tonConnectUI = new TonConnectUI({
 });
 
 const tonstakers = new Tonstakers({
-  // @ts-ignore
   connector: tonConnectUI,   // Required: TonConnect-compatible wallet connector
   partnerCode: 123456,       // Optional: your referral/partner code for attribution
   tonApiKey: "YOUR_API_KEY", // Optional: tonapi.io API key for higher rate limits
@@ -70,6 +69,17 @@ const tonstakers = new Tonstakers({
     tonApiKey: "YOUR_API_KEY",
   });
 </script>
+```
+
+The SDK exports `IWalletConnector` — the minimal interface a connector must satisfy. `TonConnectUI` from `@tonconnect/ui` and `TonConnect` from `@tonconnect/sdk` both satisfy it out of the box. You can also use it to type your own connector:
+
+```typescript
+import { IWalletConnector } from "tonstakers-sdk";
+
+class MyConnector implements IWalletConnector {
+  sendTransaction(tx) { ... }
+  onStatusChange(callback) { ... }
+}
 ```
 
 ### Constructor Options

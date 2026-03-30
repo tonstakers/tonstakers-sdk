@@ -18,17 +18,11 @@ interface TransactionDetails {
   messages: TransactionMessage[];
 }
 
-interface WalletAccount {
-  address: string;
-  chain: string;
-}
-
-interface IWalletConnector {
-  wallet: { account?: WalletAccount };
+export interface IWalletConnector {
   sendTransaction: (
     transactionDetails: TransactionDetails,
   ) => Promise<SendTransactionResponse>;
-  onStatusChange: (callback: (wallet: any) => void) => void;
+  onStatusChange: (callback: (wallet: any) => void) => void | (() => void);
 }
 
 interface TonstakersOptions {
