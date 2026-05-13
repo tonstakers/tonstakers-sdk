@@ -1,6 +1,17 @@
-import { Address, beginCell, fromNano, toNano } from "@ton/core";
+import {
+  Address,
+  beginCell,
+  Cell,
+  Dictionary,
+  fromNano,
+  internal,
+  loadMessageRelaxed,
+  SendMode,
+  storeMessageRelaxed,
+  toNano,
+} from "@ton/core";
 import { Api, ApyHistory, HttpClient, NftItem } from "tonapi-sdk-js";
-import { BLOCKCHAIN, CONTRACT, TIMING } from "./constants";
+import { BLOCKCHAIN, CONTRACT, MULTISIG, TIMING } from "./constants";
 import { log } from "./utils";
 
 interface SendTransactionResponse {
@@ -45,6 +56,64 @@ export interface RoundInfo {
 
 export interface WithdrawalPayoutData {
   active_collections: RoundInfo[];
+}
+
+export interface MultisigData {
+  address: Address;
+  threshold: number;
+  signers: Address[];
+  proposers: Address[];
+  nextOrderSeqno: bigint | null;
+  allowArbitraryOrderSeqno: boolean;
+  balance: bigint;
+  isSigner: boolean;
+  isProposer: boolean;
+  signerIndex: number | null;
+  proposerIndex: number | null;
+}
+
+export type MultisigOrderActionKind = "stake" | "unstake";
+
+export interface MultisigOrderAction {
+  kind: MultisigOrderActionKind;
+  amount: bigint;
+}
+
+export interface MultisigOrderInfo {
+  orderAddress: Address;
+  multisigAddress: Address;
+  seqno: bigint;
+  threshold: number;
+  approvalsNum: number;
+  approvalsMask: bigint;
+  approvals: boolean[];
+  signers: Address[];
+  expirationDate: number;
+  executed: boolean;
+  expired: boolean;
+  canApprove: boolean;
+  signerIndex: number | null;
+  action: MultisigOrderAction | null;
+}
+
+export interface MultisigOrderOptions {
+  expirationDate?: number;
+  valueForDeploy?: bigint;
+  queryId?: bigint;
+  orderSeqno?: bigint;
+}
+
+export interface MultisigUnstakeOrderOptions extends MultisigOrderOptions {
+  waitTillRoundEnd?: boolean;
+  fillOrKill?: boolean;
+}
+
+interface TvmStackRecord {
+  type: "cell" | "num" | "nan" | "null" | "tuple";
+  cell?: string;
+  slice?: string;
+  num?: string;
+  tuple?: TvmStackRecord[];
 }
 
 class Tonstakers extends EventTarget {
@@ -287,6 +356,25 @@ class Tonstakers extends EventTarget {
     }
   }
 
+  async getMultisigStakedBalance(
+    multisigAddress: string | Address,
+  ): Promise<number> {
+    const addr =
+      typeof multisigAddress === "string"
+        ? Address.parse(multisigAddress)
+        : multisigAddress;
+    try {
+      const jettonWallet = await this.getJettonWalletAddress(addr);
+      const data = await this.client.blockchain.execGetMethodForBlockchainAccount(
+        jettonWallet.toString(),
+        "get_wallet_data",
+      );
+      return Number(data.decoded?.balance ?? 0);
+    } catch {
+      return 0;
+    }
+  }
+
   async getBalance(): Promise<number> {
     const walletAddress = this.walletAddress;
     if (!walletAddress) throw new Error("Wallet is not connected.");
@@ -442,35 +530,50 @@ class Tonstakers extends EventTarget {
     }
   }
 
+  private buildStakePayload(): Cell {
+    return beginCell()
+      .storeUint(CONTRACT.PAYLOAD_STAKE, 32)
+      .storeUint(1, 64)
+      .storeUint(this.partnerCode, 64)
+      .endCell();
+  }
+
+  private buildUnstakePayload(
+    amount: bigint,
+    ownerAddress: Address,
+    waitTillRoundEnd: boolean = false,
+    fillOrKill: boolean = false,
+  ): Cell {
+    return beginCell()
+      .storeUint(CONTRACT.PAYLOAD_UNSTAKE, 32)
+      .storeUint(0, 64)
+      .storeCoins(amount)
+      .storeAddress(ownerAddress)
+      .storeMaybeRef(
+        beginCell()
+          .storeUint(Number(waitTillRoundEnd), 1)
+          .storeUint(Number(fillOrKill), 1)
+          .endCell(),
+      )
+      .endCell();
+  }
+
   private preparePayload(
     operation: "stake" | "unstake",
     amount: bigint,
     waitTillRoundEnd: boolean = false,
     fillOrKill: boolean = false,
   ): string {
-    let cell = beginCell();
-
-    switch (operation) {
-      case "stake":
-        cell.storeUint(CONTRACT.PAYLOAD_STAKE, 32);
-        cell.storeUint(1, 64).storeUint(this.partnerCode, 64);
-        break;
-      case "unstake":
-        cell.storeUint(CONTRACT.PAYLOAD_UNSTAKE, 32);
-        cell
-          .storeUint(0, 64)
-          .storeCoins(amount)
-          .storeAddress(this.walletAddress!)
-          .storeMaybeRef(
-            beginCell()
-              .storeUint(Number(waitTillRoundEnd), 1)
-              .storeUint(Number(fillOrKill), 1)
-              .endCell(),
+    const cell =
+      operation === "stake"
+        ? this.buildStakePayload()
+        : this.buildUnstakePayload(
+            amount,
+            this.walletAddress!,
+            waitTillRoundEnd,
+            fillOrKill,
           );
-        break;
-    }
-
-    return cell.endCell().toBoc().toString("base64");
+    return cell.toBoc().toString("base64");
   }
 
   private async getJettonWalletAddress(
@@ -495,6 +598,442 @@ class Tonstakers extends EventTarget {
       );
       throw new Error("Could not retrieve jetton wallet address.");
     }
+  }
+
+  async getMultisigData(
+    multisigAddress: string | Address,
+  ): Promise<MultisigData> {
+    const addr = Tonstakers.toAddress(multisigAddress);
+    const addrStr = addr.toString();
+
+    const [methodResult, account] = await Promise.all([
+      this.client.blockchain.execGetMethodForBlockchainAccount(
+        addrStr,
+        "get_multisig_data",
+      ),
+      this.client.accounts.getAccount(addrStr),
+    ]);
+
+    if (!methodResult.success || methodResult.exit_code !== 0) {
+      throw new Error(
+        `get_multisig_data failed (exit_code=${methodResult.exit_code})`,
+      );
+    }
+    if (methodResult.stack.length < 4) {
+      throw new Error("get_multisig_data returned unexpected stack");
+    }
+
+    const rawSeqno = Tonstakers.tvmNum(methodResult.stack[0]);
+    const threshold = Number(Tonstakers.tvmNum(methodResult.stack[1]));
+    const signers = Tonstakers.parseAddressDict(
+      Tonstakers.tvmCellOpt(methodResult.stack[2]),
+    );
+    const proposers = Tonstakers.parseAddressDict(
+      Tonstakers.tvmCellOpt(methodResult.stack[3]),
+    );
+
+    const allowArbitraryOrderSeqno = rawSeqno < BigInt(0);
+    const nextOrderSeqno = allowArbitraryOrderSeqno ? null : rawSeqno;
+
+    let signerIndex = -1;
+    let proposerIndex = -1;
+    if (this.walletAddress) {
+      signerIndex = signers.findIndex((a) => a.equals(this.walletAddress!));
+      proposerIndex = proposers.findIndex((a) =>
+        a.equals(this.walletAddress!),
+      );
+    }
+
+    return {
+      address: addr,
+      threshold,
+      signers,
+      proposers,
+      nextOrderSeqno,
+      allowArbitraryOrderSeqno,
+      balance: BigInt(account.balance),
+      isSigner: signerIndex >= 0,
+      isProposer: proposerIndex >= 0,
+      signerIndex: signerIndex >= 0 ? signerIndex : null,
+      proposerIndex: proposerIndex >= 0 ? proposerIndex : null,
+    };
+  }
+
+  async getMultisigPendingOrders(
+    multisigAddress: string | Address,
+    options?: { limit?: number; includeExpired?: boolean },
+  ): Promise<MultisigOrderInfo[]> {
+    const addr = Tonstakers.toAddress(multisigAddress);
+    const limit = options?.limit ?? MULTISIG.TX_LOOKUP_DEFAULT_LIMIT;
+    const includeExpired = options?.includeExpired ?? false;
+
+    const txs = await this.client.blockchain.getBlockchainAccountTransactions(
+      addr.toString(),
+      { limit },
+    );
+
+    const orderAddrs = new Set<string>();
+    const initOp = `0x${MULTISIG.OP_ORDER_INIT.toString(16)}`;
+    for (const tx of txs.transactions) {
+      for (const out of tx.out_msgs) {
+        if (out.op_code?.toLowerCase() !== initOp) continue;
+        const dst = out.destination?.address;
+        if (dst) orderAddrs.add(dst);
+      }
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const orders = await Promise.all(
+      Array.from(orderAddrs).map((orderAddrRaw) =>
+        this.readOrderData(orderAddrRaw).catch(() => null),
+      ),
+    );
+
+    return orders
+      .filter((o): o is MultisigOrderInfo => o !== null)
+      .filter((o) => !o.executed)
+      .filter((o) => includeExpired || !o.expired)
+      .sort((a, b) => (a.seqno < b.seqno ? 1 : -1));
+  }
+
+  async createStakeOrder(
+    multisigAddress: string | Address,
+    amount: bigint,
+    options: MultisigOrderOptions = {},
+  ): Promise<SendTransactionResponse> {
+    if (!this.stakingContractAddress) {
+      throw new Error("Staking contract address not set.");
+    }
+    const data = await this.getMultisigData(multisigAddress);
+    const innerValue = amount + toNano(CONTRACT.STAKE_FEE_RES);
+    const action = this.buildMultisigSendAction(
+      this.stakingContractAddress,
+      innerValue,
+      this.buildStakePayload(),
+    );
+    return this.submitMultisigOrder(data, [action], options);
+  }
+
+  async approveMultisigOrder(
+    orderAddress: string | Address,
+    options?: { signerIndex?: number; queryId?: bigint; value?: bigint },
+  ): Promise<SendTransactionResponse> {
+    if (!this.walletAddress)
+      throw new Error("Wallet is not connected.");
+    const addr = Tonstakers.toAddress(orderAddress);
+
+    let signerIdx = options?.signerIndex;
+    if (signerIdx === undefined) {
+      const order = await this.readOrderData(addr.toString());
+      if (!order) throw new Error("Order not found or not inited.");
+      if (order.signerIndex === null) {
+        throw new Error("Connected wallet is not a signer for this order.");
+      }
+      signerIdx = order.signerIndex;
+    }
+
+    const queryId = options?.queryId ?? BigInt(0);
+    const body = beginCell()
+      .storeUint(MULTISIG.OP_ORDER_APPROVE, 32)
+      .storeUint(queryId, 64)
+      .storeUint(signerIdx, 8)
+      .endCell();
+
+    const value = options?.value ?? toNano("0.1");
+    return this.sendTransaction(addr, value, body.toBoc().toString("base64"));
+  }
+
+  async createUnstakeOrder(
+    multisigAddress: string | Address,
+    amount: bigint,
+    options: MultisigUnstakeOrderOptions = {},
+  ): Promise<SendTransactionResponse> {
+    const data = await this.getMultisigData(multisigAddress);
+    const multisigJettonWallet = await this.getJettonWalletAddress(data.address);
+    const action = this.buildMultisigSendAction(
+      multisigJettonWallet,
+      toNano(CONTRACT.UNSTAKE_FEE_RES),
+      this.buildUnstakePayload(
+        amount,
+        data.address,
+        options.waitTillRoundEnd ?? false,
+        options.fillOrKill ?? false,
+      ),
+    );
+    return this.submitMultisigOrder(data, [action], options);
+  }
+
+  private async submitMultisigOrder(
+    data: MultisigData,
+    actions: Cell[],
+    options: MultisigOrderOptions,
+  ): Promise<SendTransactionResponse> {
+    let isSigner: boolean;
+    let addrIdx: number;
+    if (data.isSigner) {
+      isSigner = true;
+      addrIdx = data.signerIndex!;
+    } else if (data.isProposer) {
+      isSigner = false;
+      addrIdx = data.proposerIndex!;
+    } else {
+      throw new Error(
+        "Connected wallet is not a signer or proposer of this multisig.",
+      );
+    }
+
+    const expirationDate =
+      options.expirationDate ??
+      Math.floor(Date.now() / 1000) + MULTISIG.DEFAULT_EXPIRATION_SECONDS;
+    const orderSeqno =
+      options.orderSeqno ??
+      (data.allowArbitraryOrderSeqno
+        ? Tonstakers.randomUint256()
+        : MULTISIG.ARBITRARY_SEQNO);
+    const queryId = options.queryId ?? BigInt(0);
+    const actionsCell = Tonstakers.buildOrderActionsCell(actions);
+
+    let deployValue: bigint;
+    if (options.valueForDeploy !== undefined) {
+      deployValue = options.valueForDeploy;
+    } else {
+      deployValue = await this.estimateOrderValue(
+        data.address,
+        actionsCell,
+        expirationDate,
+      );
+    }
+
+    const body = beginCell()
+      .storeUint(MULTISIG.OP_NEW_ORDER, 32)
+      .storeUint(queryId, 64)
+      .storeUint(orderSeqno, 256)
+      .storeBit(isSigner)
+      .storeUint(addrIdx, 8)
+      .storeUint(expirationDate, 48)
+      .storeRef(actionsCell)
+      .endCell();
+
+    return this.sendTransaction(
+      data.address,
+      deployValue,
+      body.toBoc().toString("base64"),
+    );
+  }
+
+  private async estimateOrderValue(
+    multisigAddress: Address,
+    actionsCell: Cell,
+    expirationDate: number,
+  ): Promise<bigint> {
+    const fallback = toNano(MULTISIG.DEFAULT_DEPLOY_VALUE);
+    try {
+      const res = await this.client.blockchain.execGetMethodForBlockchainAccount(
+        multisigAddress.toString(),
+        "get_order_estimate",
+        {
+          args: [
+            actionsCell.toBoc().toString("base64"),
+            expirationDate.toString(),
+          ],
+        },
+      );
+      if (!res.success || res.exit_code !== 0 || res.stack.length < 1) {
+        return fallback;
+      }
+      const estimate = Tonstakers.tvmNum(res.stack[0]);
+      if (estimate <= BigInt(0)) return fallback;
+      // 20% buffer on top of the contract's minimum, capped by a hard floor of
+      // 0.05 TON so tiny estimates still leave room for forward fees.
+      const withBuffer = (estimate * BigInt(120)) / BigInt(100);
+      const minFloor = estimate + toNano("0.05");
+      return withBuffer > minFloor ? withBuffer : minFloor;
+    } catch {
+      return fallback;
+    }
+  }
+
+  private buildMultisigSendAction(
+    to: Address,
+    value: bigint,
+    body: Cell,
+    sendMode: SendMode = SendMode.PAY_GAS_SEPARATELY,
+  ): Cell {
+    const msg = internal({ to, value, bounce: true, body });
+    const msgCell = beginCell().store(storeMessageRelaxed(msg)).endCell();
+    return beginCell()
+      .storeUint(MULTISIG.ACTION_SEND_MESSAGE, 32)
+      .storeUint(sendMode, 8)
+      .storeRef(msgCell)
+      .endCell();
+  }
+
+  private static buildOrderActionsCell(actions: Cell[]): Cell {
+    if (actions.length === 0 || actions.length > 255) {
+      throw new Error("Action count must be in [1, 255]");
+    }
+    const dict = Dictionary.empty(
+      Dictionary.Keys.Uint(8),
+      Dictionary.Values.Cell(),
+    );
+    actions.forEach((a, i) => dict.set(i, a));
+    return beginCell().storeDictDirect(dict).endCell();
+  }
+
+  private async readOrderData(
+    orderAddrRaw: string,
+  ): Promise<MultisigOrderInfo | null> {
+    const res = await this.client.blockchain.execGetMethodForBlockchainAccount(
+      orderAddrRaw,
+      "get_order_data",
+    );
+    if (!res.success || res.exit_code !== 0) return null;
+    if (res.stack.length < 8) return null;
+
+    const multisig = Tonstakers.tvmAddress(res.stack[0]);
+    const seqno = Tonstakers.tvmNum(res.stack[1]);
+    const thresholdOpt = Tonstakers.tvmNumOpt(res.stack[2]);
+    if (thresholdOpt === null) return null;
+    const ZERO = BigInt(0);
+    const ONE = BigInt(1);
+    const executed = (Tonstakers.tvmNumOpt(res.stack[3]) ?? ZERO) !== ZERO;
+    const signers = Tonstakers.parseAddressDict(
+      Tonstakers.tvmCellOpt(res.stack[4]),
+    );
+    const approvalsMask = Tonstakers.tvmNumOpt(res.stack[5]) ?? ZERO;
+    const approvalsNum = Number(Tonstakers.tvmNumOpt(res.stack[6]) ?? ZERO);
+    const expirationDate = Number(Tonstakers.tvmNumOpt(res.stack[7]) ?? ZERO);
+    const orderCell =
+      res.stack.length > 8 ? Tonstakers.tvmCellOpt(res.stack[8]) : null;
+
+    const approvals: boolean[] = [];
+    for (let i = 0; i < signers.length; i++) {
+      approvals.push(((approvalsMask >> BigInt(i)) & ONE) === ONE);
+    }
+
+    let signerIndex: number | null = null;
+    let canApprove = false;
+    if (this.walletAddress) {
+      const idx = signers.findIndex((a) => a.equals(this.walletAddress!));
+      if (idx >= 0) {
+        signerIndex = idx;
+        canApprove = !executed && !approvals[idx];
+      }
+    }
+
+    const action = orderCell ? this.parseOrderAction(orderCell) : null;
+
+    const now = Math.floor(Date.now() / 1000);
+    return {
+      orderAddress: Address.parse(orderAddrRaw),
+      multisigAddress: multisig,
+      seqno,
+      threshold: Number(thresholdOpt),
+      approvalsNum,
+      approvalsMask,
+      approvals,
+      signers,
+      expirationDate,
+      executed,
+      expired: expirationDate > 0 && expirationDate < now,
+      canApprove,
+      signerIndex,
+      action,
+    };
+  }
+
+  private parseOrderAction(orderCell: Cell): MultisigOrderAction | null {
+    try {
+      const dict = Dictionary.loadDirect(
+        Dictionary.Keys.Uint(8),
+        Dictionary.Values.Cell(),
+        orderCell,
+      );
+      const first = dict.get(0);
+      if (!first) return null;
+      const slice = first.beginParse();
+      const actionOp = slice.loadUint(32);
+      if (actionOp !== MULTISIG.ACTION_SEND_MESSAGE) return null;
+      slice.loadUint(8); // sendMode
+      const msgCell = slice.loadRef();
+      const msg = loadMessageRelaxed(msgCell.beginParse());
+      if (msg.info.type !== "internal") return null;
+      const innerValue = msg.info.value.coins;
+      const bodySlice = msg.body.beginParse();
+      if (bodySlice.remainingBits < 32) return null;
+      const bodyOp = bodySlice.loadUint(32);
+      if (bodyOp === CONTRACT.PAYLOAD_STAKE) {
+        const amount = innerValue - toNano(CONTRACT.STAKE_FEE_RES);
+        return { kind: "stake", amount: amount > BigInt(0) ? amount : innerValue };
+      }
+      if (bodyOp === CONTRACT.PAYLOAD_UNSTAKE) {
+        bodySlice.loadUint(64); // query_id
+        const amount = bodySlice.loadCoins();
+        return { kind: "unstake", amount };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private static toAddress(addr: string | Address): Address {
+    return typeof addr === "string" ? Address.parse(addr) : addr;
+  }
+
+  private static randomUint256(): bigint {
+    const bytes = new Uint8Array(32);
+    const g = globalThis as any;
+    if (g.crypto?.getRandomValues) {
+      g.crypto.getRandomValues(bytes);
+    } else {
+      for (let i = 0; i < 32; i++) bytes[i] = Math.floor(Math.random() * 256);
+    }
+    let hex = "";
+    for (let i = 0; i < bytes.length; i++) {
+      hex += bytes[i].toString(16).padStart(2, "0");
+    }
+    return BigInt("0x" + hex);
+  }
+
+  private static parseTvmNumber(s: string): bigint {
+    if (s.startsWith("-")) return -BigInt(s.slice(1));
+    return BigInt(s);
+  }
+
+  private static tvmNum(item: TvmStackRecord): bigint {
+    if (item.num !== undefined) return Tonstakers.parseTvmNumber(item.num);
+    throw new Error(`Expected num stack item, got ${item.type}`);
+  }
+
+  private static tvmNumOpt(item: TvmStackRecord): bigint | null {
+    if (item.type === "null" || item.type === "nan") return null;
+    if (item.num !== undefined) return Tonstakers.parseTvmNumber(item.num);
+    return null;
+  }
+
+  private static tvmCellOpt(item: TvmStackRecord): Cell | null {
+    if (item.type === "null") return null;
+    const hex = item.cell ?? item.slice;
+    if (!hex) return null;
+    return Cell.fromBoc(Buffer.from(hex, "hex"))[0];
+  }
+
+  private static tvmAddress(item: TvmStackRecord): Address {
+    const cell = Tonstakers.tvmCellOpt(item);
+    if (!cell) throw new Error("Address expected in stack");
+    return cell.beginParse().loadAddress();
+  }
+
+  private static parseAddressDict(cell: Cell | null): Address[] {
+    if (!cell) return [];
+    const dict = Dictionary.loadDirect(
+      Dictionary.Keys.Uint(8),
+      Dictionary.Values.Address(),
+      cell,
+    );
+    const keys = [...dict.keys()].sort((a, b) => a - b);
+    return keys.map((k) => dict.get(k)!);
   }
 
   private sendTransaction(
