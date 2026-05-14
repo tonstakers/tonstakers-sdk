@@ -478,6 +478,20 @@ class Tonstakers extends EventTarget {
   }
 
   async getActiveWithdrawalNFTs(): Promise<NftItemWithEstimates[]> {
+    if (!this.walletAddress) return [];
+    return this.collectWithdrawalNFTs(this.walletAddress);
+  }
+
+  async getActiveMultisigWithdrawalNFTs(
+    multisigAddress: string | Address,
+  ): Promise<NftItemWithEstimates[]> {
+    const owner = Tonstakers.toAddress(multisigAddress);
+    return this.collectWithdrawalNFTs(owner);
+  }
+
+  private async collectWithdrawalNFTs(
+    owner: Address,
+  ): Promise<NftItemWithEstimates[]> {
     try {
       const withdrawalPayouts = await this.getWithdrawalPayouts();
 
@@ -487,7 +501,11 @@ class Tonstakers extends EventTarget {
       const { active_collections } = withdrawalPayouts;
 
       const nftPromises = active_collections.map((collection) =>
-        this.getFilteredByAddressNFTs(collection.withdrawal_payout, collection.cycle_end * 1000)
+        this.getFilteredByAddressNFTs(
+          collection.withdrawal_payout,
+          collection.cycle_end * 1000,
+          owner,
+        ),
       );
 
       const nftResults = await Promise.all(nftPromises);
@@ -501,15 +519,20 @@ class Tonstakers extends EventTarget {
     }
   }
 
-  private async getFilteredByAddressNFTs(payoutAddress: string, endDate: number): Promise<NftItemWithEstimates[]> {
+  private async getFilteredByAddressNFTs(
+    payoutAddress: string,
+    endDate: number,
+    owner: Address,
+  ): Promise<NftItemWithEstimates[]> {
     try {
       const payoutNftCollection = await this.client.nft.getItemsFromCollection(payoutAddress);
       const endDateInSeconds = Math.floor(endDate / 1000);
+      const ownerRaw = owner.toRawString();
       const filteredItems: NftItemWithEstimates[] = [];
       let itemsBeforeCount = 0;
 
       for (const item of payoutNftCollection.nft_items) {
-        if (item.owner?.address === this.walletAddress?.toRawString()) {
+        if (item.owner?.address === ownerRaw) {
           const positionBasedTime = itemsBeforeCount * TIMING.ESTIMATED_TIME_BW_TX_S;
           const estimatedPayoutTimeInSeconds = endDateInSeconds + positionBasedTime + TIMING.ESTIMATED_TIME_AFTER_ROUND_S;
 

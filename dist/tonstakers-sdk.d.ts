@@ -105,6 +105,8 @@ export declare class Tonstakers extends EventTarget {
     unstakeInstant(amount: bigint): Promise<SendTransactionResponse>;
     unstakeBestRate(amount: bigint): Promise<SendTransactionResponse>;
     getActiveWithdrawalNFTs(): Promise<NftItemWithEstimates[]>;
+    getActiveMultisigWithdrawalNFTs(multisigAddress: string | Address): Promise<NftItemWithEstimates[]>;
+    private collectWithdrawalNFTs;
     private getFilteredByAddressNFTs;
     private buildStakePayload;
     private buildUnstakePayload;
