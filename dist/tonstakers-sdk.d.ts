@@ -1,3 +1,4 @@
+import { Address } from '@ton/core';
 import { ApyHistory } from 'tonapi-sdk-js';
 import { NftItem } from 'tonapi-sdk-js';
 import { PoolInfo } from 'tonapi-sdk-js';
@@ -5,6 +6,56 @@ import { PoolInfo } from 'tonapi-sdk-js';
 declare interface IWalletConnector {
     sendTransaction: (transactionDetails: TransactionDetails) => Promise<SendTransactionResponse>;
     onStatusChange: (callback: (wallet: any) => void) => void | (() => void);
+}
+
+export declare interface MultisigData {
+    address: Address;
+    threshold: number;
+    signers: Address[];
+    proposers: Address[];
+    nextOrderSeqno: bigint | null;
+    allowArbitraryOrderSeqno: boolean;
+    balance: bigint;
+    isSigner: boolean;
+    isProposer: boolean;
+    signerIndex: number | null;
+    proposerIndex: number | null;
+}
+
+declare interface MultisigOrderAction {
+    kind: MultisigOrderActionKind;
+    amount: bigint;
+}
+
+declare type MultisigOrderActionKind = "stake" | "unstake";
+
+export declare interface MultisigOrderInfo {
+    orderAddress: Address;
+    multisigAddress: Address;
+    seqno: bigint;
+    threshold: number;
+    approvalsNum: number;
+    approvalsMask: bigint;
+    approvals: boolean[];
+    signers: Address[];
+    expirationDate: number;
+    executed: boolean;
+    expired: boolean;
+    canApprove: boolean;
+    signerIndex: number | null;
+    action: MultisigOrderAction | null;
+}
+
+export declare interface MultisigOrderOptions {
+    expirationDate?: number;
+    valueForDeploy?: bigint;
+    queryId?: bigint;
+    orderSeqno?: bigint;
+}
+
+export declare interface MultisigUnstakeOrderOptions extends MultisigOrderOptions {
+    waitTillRoundEnd?: boolean;
+    fillOrKill?: boolean;
 }
 
 declare interface NftItemWithEstimates extends NftItem {
@@ -44,6 +95,7 @@ export declare class Tonstakers extends EventTarget {
     getRates(): Promise<any>;
     private getTonPrice;
     getStakedBalance(): Promise<number>;
+    getMultisigStakedBalance(multisigAddress: string | Address): Promise<number>;
     getBalance(): Promise<number>;
     getAvailableBalance(): Promise<number>;
     getInstantLiquidity(): Promise<number>;
@@ -53,9 +105,39 @@ export declare class Tonstakers extends EventTarget {
     unstakeInstant(amount: bigint): Promise<SendTransactionResponse>;
     unstakeBestRate(amount: bigint): Promise<SendTransactionResponse>;
     getActiveWithdrawalNFTs(): Promise<NftItemWithEstimates[]>;
+    getActiveMultisigWithdrawalNFTs(multisigAddress: string | Address): Promise<NftItemWithEstimates[]>;
+    private collectWithdrawalNFTs;
     private getFilteredByAddressNFTs;
+    private buildStakePayload;
+    private buildUnstakePayload;
     private preparePayload;
     private getJettonWalletAddress;
+    getMultisigData(multisigAddress: string | Address): Promise<MultisigData>;
+    getMultisigPendingOrders(multisigAddress: string | Address, options?: {
+        limit?: number;
+        includeExpired?: boolean;
+    }): Promise<MultisigOrderInfo[]>;
+    createStakeOrder(multisigAddress: string | Address, amount: bigint, options?: MultisigOrderOptions): Promise<SendTransactionResponse>;
+    approveMultisigOrder(orderAddress: string | Address, options?: {
+        signerIndex?: number;
+        queryId?: bigint;
+        value?: bigint;
+    }): Promise<SendTransactionResponse>;
+    createUnstakeOrder(multisigAddress: string | Address, amount: bigint, options?: MultisigUnstakeOrderOptions): Promise<SendTransactionResponse>;
+    private submitMultisigOrder;
+    private estimateOrderValue;
+    private buildMultisigSendAction;
+    private static buildOrderActionsCell;
+    private readOrderData;
+    private parseOrderAction;
+    private static toAddress;
+    private static randomUint256;
+    private static parseTvmNumber;
+    private static tvmNum;
+    private static tvmNumOpt;
+    private static tvmCellOpt;
+    private static tvmAddress;
+    private static parseAddressDict;
     private sendTransaction;
 }
 
