@@ -331,7 +331,7 @@ class Tonstakers extends EventTarget {
 
       return tonPrice || 0;
     } catch {
-      return 0;
+      throw new Error("Failed to fetch TON price");
     }
   }
 
@@ -352,7 +352,7 @@ class Tonstakers extends EventTarget {
 
       return formattedBalance;
     } catch {
-      return 0;
+      throw new Error("Failed to fetch TON price");
     }
   }
 
@@ -371,7 +371,7 @@ class Tonstakers extends EventTarget {
       );
       return Number(data.decoded?.balance ?? 0);
     } catch {
-      return 0;
+      throw new Error("Failed to fetch TON price");
     }
   }
 
@@ -383,7 +383,7 @@ class Tonstakers extends EventTarget {
       const account = await this.client!.accounts.getAccount(walletAddress.toString());
       return Math.max(Number(account.balance), 0);
     } catch {
-      return 0;
+      throw new Error("Failed to fetch TON price");
     }
   }
 
@@ -398,7 +398,7 @@ class Tonstakers extends EventTarget {
 
       return Math.max(availableBalance, 0);
     } catch {
-      return 0;
+      throw new Error("Failed to fetch TON price");
     }
   }
 
