@@ -122,7 +122,8 @@ class Tonstakers extends EventTarget {
   private walletAddress?: Address;
   private stakingContractAddress?: Address;
   private partnerCode: number;
-  private static jettonWalletAddress?: Address;
+  private jettonWalletAddress?: Address;
+  private walletSetupId = 0;
   private tonApiKey?: string;
   public ready: boolean;
   public isTestnet: boolean;
@@ -182,7 +183,9 @@ class Tonstakers extends EventTarget {
     });
     this.client = new Api(httpClient);
     this.stakingContractAddress = Address.parse(
-      CONTRACT.STAKING_CONTRACT_ADDRESS,
+      this.isTestnet
+        ? CONTRACT.STAKING_CONTRACT_ADDRESS_TESTNET
+        : CONTRACT.STAKING_CONTRACT_ADDRESS,
     );
   }
 
@@ -198,29 +201,46 @@ class Tonstakers extends EventTarget {
 
   private deinitialize(): void {
     log("Deinitializing Tonstakers...");
+    this.walletSetupId++; // cancel any in-flight setupWallet
+    this.ready = false;
     this.walletAddress = undefined;
-    Tonstakers.jettonWalletAddress = undefined;
+    this.jettonWalletAddress = undefined;
     this.dispatchEvent(new Event("deinitialized"));
   }
 
   private async setupWallet(wallet: any): Promise<void> {
     log("Setting up wallet for Tonstakers...");
 
-    this.isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
-
+    const setupId = ++this.walletSetupId;
     const newAddress = Address.parse(wallet.account.address);
-    const walletChanged = !this.walletAddress || !newAddress.equals(this.walletAddress);
+    const isTestnet = wallet.account.chain === BLOCKCHAIN.CHAIN_DEV;
+    const changed =
+      !this.walletAddress ||
+      !newAddress.equals(this.walletAddress) ||
+      isTestnet !== this.isTestnet;
 
-    this.walletAddress = newAddress;
-
-    if (walletChanged || !Tonstakers.jettonWalletAddress) {
-      Tonstakers.jettonWalletAddress = await this.getJettonWalletAddress(
-        this.walletAddress,
-      );
+    if (changed) {
+      // Don't let stake/unstake run with a wallet and jetton wallet that
+      // belong to different accounts or networks while we re-resolve.
+      this.ready = false;
+      this.walletAddress = undefined;
+      this.jettonWalletAddress = undefined;
     }
 
+    // Switch network (API + staking contract) before resolving the jetton wallet.
+    this.isTestnet = isTestnet;
     await this.setupClient();
 
+    const jettonWallet =
+      !changed && this.jettonWalletAddress
+        ? this.jettonWalletAddress
+        : await this.getJettonWalletAddress(newAddress);
+
+    // A newer status change arrived while we were awaiting; drop this result.
+    if (setupId !== this.walletSetupId) return;
+
+    this.walletAddress = newAddress;
+    this.jettonWalletAddress = jettonWallet;
     this.ready = true;
     this.dispatchEvent(new Event("initialized"));
   }
@@ -336,10 +356,10 @@ class Tonstakers extends EventTarget {
   }
 
   async getStakedBalance(): Promise<number> {
-    if (!Tonstakers.jettonWalletAddress)
+    if (!this.jettonWalletAddress)
       throw new Error("Jetton wallet address is not set.");
 
-    const addressString = Tonstakers.jettonWalletAddress.toString();
+    const addressString = this.jettonWalletAddress.toString();
 
     try {
       const jettonWalletData = await this.client!.blockchain.execGetMethodForBlockchainAccount(
@@ -404,17 +424,22 @@ class Tonstakers extends EventTarget {
 
   async getInstantLiquidity(): Promise<number> {
     const account = await this.client!.accounts.getAccount(
-      this.isTestnet
-        ? CONTRACT.STAKING_CONTRACT_ADDRESS_TESTNET
-        : CONTRACT.STAKING_CONTRACT_ADDRESS,
+      this.stakingContractAddress!.toString(),
     );
 
     return account.balance;
   }
 
+  private static assertPositiveAmount(amount: bigint): void {
+    if (typeof amount !== "bigint" || amount <= BigInt(0)) {
+      throw new Error("Amount must be a positive bigint (in nanotons).");
+    }
+  }
+
   async stake(amount: bigint): Promise<SendTransactionResponse> {
-    if (!this.walletAddress || !Tonstakers.jettonWalletAddress)
+    if (!this.walletAddress || !this.jettonWalletAddress)
       throw new Error("Tonstakers is not fully initialized.");
+    Tonstakers.assertPositiveAmount(amount);
 
     const feeRes = toNano(CONTRACT.STAKE_FEE_RES)
     const totalAmount = amount + feeRes; // Includes transaction fee
@@ -429,19 +454,23 @@ class Tonstakers extends EventTarget {
   }
 
   async stakeMax(): Promise<SendTransactionResponse> {
+    // getAvailableBalance() is already in nanotons — don't run it through toNano().
     const availableBalance = await this.getAvailableBalance();
-    const result = await this.stake(toNano(availableBalance));
-    log(`Staked maximum amount of ${availableBalance} TON successfully.`);
+    const amount = BigInt(Math.floor(availableBalance));
+    if (amount <= BigInt(0)) throw new Error("Insufficient balance to stake.");
+    const result = await this.stake(amount);
+    log(`Staked maximum amount of ${fromNano(amount)} TON successfully.`);
     return result;
   }
 
   async unstake(amount: bigint): Promise<SendTransactionResponse> {
-    if (!Tonstakers.jettonWalletAddress)
-      throw new Error("Jetton wallet address is not set.");
+    if (!this.walletAddress || !this.jettonWalletAddress)
+      throw new Error("Tonstakers is not fully initialized.");
+    Tonstakers.assertPositiveAmount(amount);
 
     const payload = this.preparePayload("unstake", amount);
     const result = await this.sendTransaction(
-      Tonstakers.jettonWalletAddress,
+      this.jettonWalletAddress,
       toNano(CONTRACT.UNSTAKE_FEE_RES),
       payload,
     ); // Includes transaction fee
@@ -450,12 +479,13 @@ class Tonstakers extends EventTarget {
   }
 
   async unstakeInstant(amount: bigint): Promise<SendTransactionResponse> {
-    if (!Tonstakers.jettonWalletAddress)
-      throw new Error("Jetton wallet address is not set.");
+    if (!this.walletAddress || !this.jettonWalletAddress)
+      throw new Error("Tonstakers is not fully initialized.");
+    Tonstakers.assertPositiveAmount(amount);
 
     const payload = this.preparePayload("unstake", amount, false, true);
     const result = await this.sendTransaction(
-      Tonstakers.jettonWalletAddress,
+      this.jettonWalletAddress,
       toNano(CONTRACT.UNSTAKE_FEE_RES),
       payload,
     ); // Includes transaction fee
@@ -464,12 +494,13 @@ class Tonstakers extends EventTarget {
   }
 
   async unstakeBestRate(amount: bigint): Promise<SendTransactionResponse> {
-    if (!Tonstakers.jettonWalletAddress)
-      throw new Error("Jetton wallet address is not set.");
+    if (!this.walletAddress || !this.jettonWalletAddress)
+      throw new Error("Tonstakers is not fully initialized.");
+    Tonstakers.assertPositiveAmount(amount);
 
     const payload = this.preparePayload("unstake", amount, true);
     const result = await this.sendTransaction(
-      Tonstakers.jettonWalletAddress,
+      this.jettonWalletAddress,
       toNano(CONTRACT.UNSTAKE_FEE_RES),
       payload,
     ); // Includes transaction fee
@@ -599,13 +630,29 @@ class Tonstakers extends EventTarget {
     return cell.toBoc().toString("base64");
   }
 
-  private async getJettonWalletAddress(
+  // Jetton wallet addresses are deterministic, so cache them per network.
+  private jettonWalletCache = new Map<string, Promise<Address>>();
+
+  private getJettonWalletAddress(walletAddress: Address): Promise<Address> {
+    const key = `${this.isTestnet ? "t" : "m"}:${walletAddress.toRawString()}`;
+    let cached = this.jettonWalletCache.get(key);
+    if (!cached) {
+      cached = this.fetchJettonWalletAddress(walletAddress);
+      cached.catch(() => this.jettonWalletCache.delete(key));
+      this.jettonWalletCache.set(key, cached);
+    }
+    return cached;
+  }
+
+  private async fetchJettonWalletAddress(
     walletAddress: Address,
   ): Promise<Address> {
     try {
-      const responsePool = await this.fetchStakingPoolInfo();
+      // Pinned rather than taken from the API response.
       const jettonMinterAddress = Address.parse(
-        responsePool.poolInfo.liquid_jetton_master!,
+        this.isTestnet
+          ? CONTRACT.JETTON_MASTER_ADDRESS_TESTNET
+          : CONTRACT.JETTON_MASTER_ADDRESS,
       );
       const responseJetton =
         await this.client.blockchain.execGetMethodForBlockchainAccount(
@@ -705,10 +752,9 @@ class Tonstakers extends EventTarget {
       }
     }
 
-    const now = Math.floor(Date.now() / 1000);
     const orders = await Promise.all(
       Array.from(orderAddrs).map((orderAddrRaw) =>
-        this.readOrderData(orderAddrRaw).catch(() => null),
+        this.readOrderData(orderAddrRaw, addr).catch(() => null),
       ),
     );
 
@@ -727,6 +773,7 @@ class Tonstakers extends EventTarget {
     if (!this.stakingContractAddress) {
       throw new Error("Staking contract address not set.");
     }
+    Tonstakers.assertPositiveAmount(amount);
     const data = await this.getMultisigData(multisigAddress);
     const innerValue = amount + toNano(CONTRACT.STAKE_FEE_RES);
     const action = this.buildMultisigSendAction(
@@ -739,20 +786,34 @@ class Tonstakers extends EventTarget {
 
   async approveMultisigOrder(
     orderAddress: string | Address,
-    options?: { signerIndex?: number; queryId?: bigint; value?: bigint },
+    options?: {
+      signerIndex?: number;
+      queryId?: bigint;
+      value?: bigint;
+      /** If set, the order must belong to this multisig. Recommended. */
+      multisigAddress?: string | Address;
+    },
   ): Promise<SendTransactionResponse> {
-    if (!this.walletAddress)
-      throw new Error("Wallet is not connected.");
+    const walletAddress = this.walletAddress;
+    if (!walletAddress) throw new Error("Wallet is not connected.");
     const addr = Tonstakers.toAddress(orderAddress);
+    const expectedMultisig = options?.multisigAddress
+      ? Tonstakers.toAddress(options.multisigAddress)
+      : undefined;
 
-    let signerIdx = options?.signerIndex;
-    if (signerIdx === undefined) {
-      const order = await this.readOrderData(addr.toString());
-      if (!order) throw new Error("Order not found or not inited.");
-      if (order.signerIndex === null) {
-        throw new Error("Connected wallet is not a signer for this order.");
-      }
-      signerIdx = order.signerIndex;
+    // Always verify the order on-chain before sending TON to it, so an
+    // arbitrary contract posing as an order can't collect the approve fee.
+    const order = await this.readOrderData(addr.toString(), expectedMultisig);
+    if (!order) throw new Error("Order not found or could not be verified.");
+    if (order.executed) throw new Error("Order is already executed.");
+    if (order.expired) throw new Error("Order is expired.");
+
+    const signerIdx = options?.signerIndex ?? order.signerIndex;
+    if (
+      signerIdx === null ||
+      !order.signers[signerIdx]?.equals(walletAddress)
+    ) {
+      throw new Error("Connected wallet is not a signer for this order.");
     }
 
     const queryId = options?.queryId ?? BigInt(0);
@@ -771,6 +832,7 @@ class Tonstakers extends EventTarget {
     amount: bigint,
     options: MultisigUnstakeOrderOptions = {},
   ): Promise<SendTransactionResponse> {
+    Tonstakers.assertPositiveAmount(amount);
     const data = await this.getMultisigData(multisigAddress);
     const multisigJettonWallet = await this.getJettonWalletAddress(data.address);
     const action = this.buildMultisigSendAction(
@@ -903,8 +965,15 @@ class Tonstakers extends EventTarget {
     return beginCell().storeDictDirect(dict).endCell();
   }
 
+  /**
+   * Reads an order and checks it is a genuine order of its multisig
+   * (address matches multisig.get_order_address(seqno)). Returns null if the
+   * order can't be read or verified, or belongs to a different multisig than
+   * `expectedMultisig`.
+   */
   private async readOrderData(
     orderAddrRaw: string,
+    expectedMultisig?: Address,
   ): Promise<MultisigOrderInfo | null> {
     const res = await this.client.blockchain.execGetMethodForBlockchainAccount(
       orderAddrRaw,
@@ -929,6 +998,12 @@ class Tonstakers extends EventTarget {
     const orderCell =
       res.stack.length > 8 ? Tonstakers.tvmCellOpt(res.stack[8]) : null;
 
+    if (expectedMultisig && !multisig.equals(expectedMultisig)) return null;
+    const orderAddress = Address.parse(orderAddrRaw);
+    if (!(await this.isGenuineOrder(multisig, seqno, orderAddress))) {
+      return null;
+    }
+
     const approvals: boolean[] = [];
     for (let i = 0; i < signers.length; i++) {
       approvals.push(((approvalsMask >> BigInt(i)) & ONE) === ONE);
@@ -944,11 +1019,13 @@ class Tonstakers extends EventTarget {
       }
     }
 
-    const action = orderCell ? this.parseOrderAction(orderCell) : null;
+    const action = orderCell
+      ? await this.parseOrderAction(orderCell, multisig)
+      : null;
 
     const now = Math.floor(Date.now() / 1000);
     return {
-      orderAddress: Address.parse(orderAddrRaw),
+      orderAddress,
       multisigAddress: multisig,
       seqno,
       threshold: Number(thresholdOpt),
@@ -965,35 +1042,86 @@ class Tonstakers extends EventTarget {
     };
   }
 
-  private parseOrderAction(orderCell: Cell): MultisigOrderAction | null {
+  private async isGenuineOrder(
+    multisig: Address,
+    seqno: bigint,
+    orderAddress: Address,
+  ): Promise<boolean> {
+    try {
+      const res = await this.client.blockchain.execGetMethodForBlockchainAccount(
+        multisig.toString(),
+        "get_order_address",
+        { args: [seqno.toString()] },
+      );
+      if (!res.success || res.exit_code !== 0 || res.stack.length < 1) {
+        return false;
+      }
+      return Tonstakers.tvmAddress(res.stack[0]).equals(orderAddress);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Describes an order only if it has exactly the shape the SDK itself
+   * builds: a single send-message action to the staking contract (stake) or
+   * to the multisig's own tsTON wallet with the multisig as response address
+   * (unstake). Anything else returns null so the UI can't mislabel an order
+   * that actually moves funds elsewhere.
+   */
+  private async parseOrderAction(
+    orderCell: Cell,
+    multisig: Address,
+  ): Promise<MultisigOrderAction | null> {
     try {
       const dict = Dictionary.loadDirect(
         Dictionary.Keys.Uint(8),
         Dictionary.Values.Cell(),
         orderCell,
       );
+      if (dict.size !== 1) return null;
       const first = dict.get(0);
       if (!first) return null;
+
       const slice = first.beginParse();
-      const actionOp = slice.loadUint(32);
-      if (actionOp !== MULTISIG.ACTION_SEND_MESSAGE) return null;
-      slice.loadUint(8); // sendMode
+      if (slice.loadUint(32) !== MULTISIG.ACTION_SEND_MESSAGE) return null;
+      if (slice.loadUint(8) !== SendMode.PAY_GAS_SEPARATELY) return null;
       const msgCell = slice.loadRef();
+      if (slice.remainingBits !== 0 || slice.remainingRefs !== 0) return null;
+
       const msg = loadMessageRelaxed(msgCell.beginParse());
       if (msg.info.type !== "internal") return null;
+      if (msg.init) return null;
+      if (msg.info.value.other && msg.info.value.other.size > 0) return null;
+      const dest = msg.info.dest;
       const innerValue = msg.info.value.coins;
+
       const bodySlice = msg.body.beginParse();
       if (bodySlice.remainingBits < 32) return null;
       const bodyOp = bodySlice.loadUint(32);
+
       if (bodyOp === CONTRACT.PAYLOAD_STAKE) {
+        if (
+          !this.stakingContractAddress ||
+          !dest.equals(this.stakingContractAddress)
+        ) {
+          return null;
+        }
         const amount = innerValue - toNano(CONTRACT.STAKE_FEE_RES);
-        return { kind: "stake", amount: amount > BigInt(0) ? amount : innerValue };
+        if (amount <= BigInt(0)) return null;
+        return { kind: "stake", amount };
       }
+
       if (bodyOp === CONTRACT.PAYLOAD_UNSTAKE) {
         bodySlice.loadUint(64); // query_id
         const amount = bodySlice.loadCoins();
+        const responseAddress = bodySlice.loadMaybeAddress();
+        if (!responseAddress || !responseAddress.equals(multisig)) return null;
+        const multisigJettonWallet = await this.getJettonWalletAddress(multisig);
+        if (!dest.equals(multisigJettonWallet)) return null;
         return { kind: "unstake", amount };
       }
+
       return null;
     } catch {
       return null;
@@ -1007,11 +1135,12 @@ class Tonstakers extends EventTarget {
   private static randomUint256(): bigint {
     const bytes = new Uint8Array(32);
     const g = globalThis as any;
-    if (g.crypto?.getRandomValues) {
-      g.crypto.getRandomValues(bytes);
-    } else {
-      for (let i = 0; i < 32; i++) bytes[i] = Math.floor(Math.random() * 256);
+    if (!g.crypto?.getRandomValues) {
+      throw new Error(
+        "Secure random generator (crypto.getRandomValues) is not available.",
+      );
     }
+    g.crypto.getRandomValues(bytes);
     let hex = "";
     for (let i = 0; i < bytes.length; i++) {
       hex += bytes[i].toString(16).padStart(2, "0");
@@ -1064,7 +1193,8 @@ class Tonstakers extends EventTarget {
     amount: bigint,
     payload: string,
   ): Promise<SendTransactionResponse> {
-    const validUntil = +new Date() + TIMING.TIMEOUT;
+    // TonConnect expects validUntil as a unix timestamp in seconds.
+    const validUntil = Math.floor((Date.now() + TIMING.TIMEOUT) / 1000);
     const transaction: TransactionDetails = {
       validUntil,
       messages: [

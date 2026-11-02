@@ -21,7 +21,6 @@
   "dependencies": {
     "@ton/core": "0.58.1",
     "@ton/crypto": "3.3.0",
-    "@ton/ton": "15.0.0",
     "tonapi-sdk-js": "2.0.2"
   },
   "devDependencies": {

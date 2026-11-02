@@ -1,12 +1,12 @@
-const path = require("path");
-const { defineConfig } = require("vite");
+import { fileURLToPath } from "node:url";
+import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
-module.exports = defineConfig({
+export default defineConfig({
   build: {
     lib: {
-      entry: path.resolve(__dirname, "src/index.ts"),
+      entry: fileURLToPath(new URL("./src/index.ts", import.meta.url)),
       name: "TonstakersSDK",
       fileName: () => `tonstakers-sdk.min.js`,
       formats: ["umd"],
