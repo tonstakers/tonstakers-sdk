@@ -1,7 +1,7 @@
 // Timing-related constants
 export const TIMING = {
   DEFAULT_INTERVAL: 5000,
-  TIMEOUT: 600000,
+  TIMEOUT: 600000, // ms; how long a sent transaction stays valid
   CACHE_TIMEOUT: 30000,
   ESTIMATED_TIME_BW_TX_S: 3,
   ESTIMATED_TIME_AFTER_ROUND_S: 10 * 60,
@@ -18,6 +18,11 @@ export const BLOCKCHAIN = {
 export const CONTRACT = {
   STAKING_CONTRACT_ADDRESS: "EQCkWxfyhAkim3g2DjKQQg8T5P4g-Q1-K_jErGcDJZ4i-vqR",
   STAKING_CONTRACT_ADDRESS_TESTNET: "kQANFsYyYn-GSZ4oajUJmboDURZU-udMHf9JxzO4vYM_hFP3",
+  // tsTON jetton master. Pinned so a compromised API can't redirect unstake messages.
+  JETTON_MASTER_ADDRESS:
+    "0:bdf3fa8098d129b54b4f73b5bac5d1e1fd91eb054169c3916dfc8ccd536d1000",
+  JETTON_MASTER_ADDRESS_TESTNET:
+    "0:224365caec15de3cbc1e99ea3ebb8c0dca383ec3119ec9299a14610fed1d8c85",
   PARTNER_CODE: 0x000000106796caef,
   PAYLOAD_UNSTAKE: 0x595f07bc,
   PAYLOAD_STAKE: 0x47d54391,

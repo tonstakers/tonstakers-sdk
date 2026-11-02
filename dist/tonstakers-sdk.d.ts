@@ -74,7 +74,8 @@ export declare class Tonstakers extends EventTarget {
     private walletAddress?;
     private stakingContractAddress?;
     private partnerCode;
-    private static jettonWalletAddress?;
+    private jettonWalletAddress?;
+    private walletSetupId;
     private tonApiKey?;
     ready: boolean;
     isTestnet: boolean;
@@ -99,6 +100,7 @@ export declare class Tonstakers extends EventTarget {
     getBalance(): Promise<number>;
     getAvailableBalance(): Promise<number>;
     getInstantLiquidity(): Promise<number>;
+    private static assertPositiveAmount;
     stake(amount: bigint): Promise<SendTransactionResponse>;
     stakeMax(): Promise<SendTransactionResponse>;
     unstake(amount: bigint): Promise<SendTransactionResponse>;
@@ -111,7 +113,9 @@ export declare class Tonstakers extends EventTarget {
     private buildStakePayload;
     private buildUnstakePayload;
     private preparePayload;
+    private jettonWalletCache;
     private getJettonWalletAddress;
+    private fetchJettonWalletAddress;
     getMultisigData(multisigAddress: string | Address): Promise<MultisigData>;
     getMultisigPendingOrders(multisigAddress: string | Address, options?: {
         limit?: number;
@@ -122,13 +126,29 @@ export declare class Tonstakers extends EventTarget {
         signerIndex?: number;
         queryId?: bigint;
         value?: bigint;
+        /** If set, the order must belong to this multisig. Recommended. */
+        multisigAddress?: string | Address;
     }): Promise<SendTransactionResponse>;
     createUnstakeOrder(multisigAddress: string | Address, amount: bigint, options?: MultisigUnstakeOrderOptions): Promise<SendTransactionResponse>;
     private submitMultisigOrder;
     private estimateOrderValue;
     private buildMultisigSendAction;
     private static buildOrderActionsCell;
+    /**
+     * Reads an order and checks it is a genuine order of its multisig
+     * (address matches multisig.get_order_address(seqno)). Returns null if the
+     * order can't be read or verified, or belongs to a different multisig than
+     * `expectedMultisig`.
+     */
     private readOrderData;
+    private isGenuineOrder;
+    /**
+     * Describes an order only if it has exactly the shape the SDK itself
+     * builds: a single send-message action to the staking contract (stake) or
+     * to the multisig's own tsTON wallet with the multisig as response address
+     * (unstake). Anything else returns null so the UI can't mislabel an order
+     * that actually moves funds elsewhere.
+     */
     private parseOrderAction;
     private static toAddress;
     private static randomUint256;
